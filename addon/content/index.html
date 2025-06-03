@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="page-title"></title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Open+Sans:wght@400;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    /* ---------- 全局样式 ---------- */
+    :root {
+      --primary-color: #2c3e50;
+      --secondary-color: #3498db;
+      --accent-color: #1abc9c;
+      --light-gray: #f5f7fa;
+      --medium-gray: #e1e5eb;
+      --dark-gray: #7f8c8d;
+      --border-radius: 8px;
+      --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --transition: all 0.3s ease;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Open Sans", sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+      color: #333;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: var(--border-radius);
+      box-shadow: var(--box-shadow);
+      padding: 30px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid #e1e8ed;
+    }
+
+    .container::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 5px;
+      background: linear-gradient(
+        90deg,
+        var(--secondary-color),
+        var(--accent-color)
+      );
+    }
+
+    h1 {
+      font-family: "Merriweather", serif;
+      text-align: center;
+      margin-bottom: 30px;
+      color: var(--primary-color);
+      font-weight: 700;
+      font-size: 2.4rem;
+      position: relative;
+      padding-bottom: 20px;
+    }
+
+    h1::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 4px;
+      background: var(--accent-color);
+      border-radius: 2px;
+    }
+
+    h2 {
+      font-family: "Merriweather", serif;
+      font-size: 1.5rem;
+      color: var(--primary-color);
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid var(--light-gray);
+    }
+
+    /* ---------- 顶部控制区 ---------- */
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 25px;
+      padding: 25px;
+      background-color: var(--light-gray);
+      border-radius: var(--border-radius);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+      background: linear-gradient(to bottom, #ffffff, #f5f9fc);
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .control-group label {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--primary-color);
+    }
+
+    .control-group input[type="text"],
+    .control-group select,
+    .control-group input[type="number"] {
+      padding: 12px 15px;
+      border: 1px solid var(--medium-gray);
+      border-radius: var(--border-radius);
+      font-size: 1rem;
+      background-color: white;
+      transition: var(--transition);
+    }
+
+    .control-group input[type="text"]:focus,
+    .control-group select:focus,
+    .control-group input[type="number"]:focus {
+      border-color: var(--secondary-color);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    }
+
+    .control-group input[type="text"]::placeholder {
+      color: #95a5a6;
+    }
+
+    /* ---------- 注释容器 ---------- */
+    #annotation-container {
+      display: grid;
+      grid-template-columns: repeat(1, 1fr);
+      gap: 25px;
+      padding: 20px;
+      max-height: 500px;
+      min-height: 500px;
+      height: 500px;
+      overflow-y: auto;
+      background-color: white;
+      border: 1px solid var(--medium-gray);
+      border-radius: var(--border-radius);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+      margin-bottom: 30px;
+    }
+
+    /* 自定义滚动条 */
+    #annotation-container::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #annotation-container::-webkit-scrollbar-track {
+      background: var(--light-gray);
+      border-radius: 4px;
+    }
+
+    #annotation-container::-webkit-scrollbar-thumb {
+      background: #bdc3c7;
+      border-radius: 4px;
+    }
+
+    #annotation-container::-webkit-scrollbar-thumb:hover {
+      background: #95a5a6;
+    }
+
+    /* ---------- 单个注释块 ---------- */
+    .annotation-item {
+      cursor: pointer;
+      border-radius: var(--border-radius);
+      padding: 20px;
+      box-shadow: var(--box-shadow);
+      opacity: 1;
+      transition: var(--transition);
+      position: relative;
+      border: 1px solid var(--medium-gray);
+      background-color: white;
+      display: flex;
+      flex-direction: column;
+      /* height: 100%; */
+      min-height: 230px;
+      max-height: 250px;
+      overflow: auto;
+      background: linear-gradient(to bottom, #ffffff, #fcfdff);
+    }
+
+    .annotation-item:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      border-color: var(--secondary-color);
+    }
+
+    .annotation-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--medium-gray);
+    }
+
+    .annotation-color {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .annotation-text {
+      font-weight: 600;
+      word-break: break-word;
+      margin-bottom: 10px;
+      flex-grow: 1;
+      font-size: 1.1rem;
+      color: var(--primary-color);
+      line-height: 1.5;
+    }
+
+    .annotation-comment {
+      font-size: 1rem;
+      word-break: break-word;
+      margin-top: 15px;
+      padding: 15px;
+      background-color: var(--light-gray);
+      border-radius: var(--border-radius);
+      font-style: italic;
+      line-height: 1.6;
+      position: relative;
+    }
+
+    .annotation-comment::before {
+      content: "“";
+      position: absolute;
+      top: -10px;
+      left: 5px;
+      font-size: 3rem;
+      color: rgba(0, 0, 0, 0.05);
+      font-family: serif;
+    }
+
+    .annotation-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .annotation-tag {
+      font-size: 0.85rem;
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 20px;
+      background-color: #e1f0fa;
+      color: #2980b9;
+      font-weight: 600;
+      transition: var(--transition);
+      border: 1px solid #d0e3f1;
+    }
+
+    .annotation-tag:hover {
+      transform: translateY(-2px);
+      background-color: #d1e8ff;
+    }
+
+    .annotation-uri {
+      margin-top: 15px;
+      font-size: 0.85rem;
+      color: var(--dark-gray);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* 悬浮显示来源和时间的浮层 */
+    .annotation-hover-info {
+      display: none;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      z-index: 10;
+      backdrop-filter: blur(2px);
+    }
+
+    .annotation-item:hover .annotation-hover-info {
+      display: block;
+    }
+
+    /* ---------- 没有结果时的提示 ---------- */
+    #no-results {
+      text-align: center;
+      color: #95a5a6;
+      margin-top: 20px;
+      font-size: 1.2rem;
+      padding: 60px;
+      background-color: var(--light-gray);
+      border-radius: var(--border-radius);
+    }
+
+    /* ---------- 底部标签/颜色筛选 ---------- */
+    .filters-container {
+      margin-top: 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+      padding: 25px;
+      background-color: var(--light-gray);
+      border-radius: var(--border-radius);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+      background: linear-gradient(to bottom, #ffffff, #f5f9fc);
+    }
+
+    .filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .filter-group label {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      min-width: 120px;
+    }
+
+    .tags-list,
+    .colors-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .tag-item {
+      background-color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: var(--transition);
+      border: 1px solid var(--medium-gray);
+      font-weight: 600;
+      color: #5c6bc0;
+    }
+
+    .tag-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .tag-item.selected {
+      background-color: #5c6bc0;
+      color: white;
+      border-color: #5c6bc0;
+    }
+
+    .color-item {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .color-item:hover {
+      transform: scale(1.15);
+    }
+
+    .color-item.selected {
+      transform: scale(1.25);
+      border: 2px solid var(--primary-color);
+      box-shadow: 0 0 0 2px white, 0 0 0 4px var(--primary-color);
+    }
+
+    .filter-group select {
+      padding: 10px 14px;
+      border: 1px solid var(--medium-gray);
+      border-radius: var(--border-radius);
+      font-size: 0.95rem;
+      background-color: white;
+      min-width: 90px;
+    }
+
+    /* ---------- 统计区域 ---------- */
+    .stats-container {
+      margin-top: 40px;
+      background: var(--light-gray);
+      border-radius: var(--border-radius);
+      padding: 30px;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+      background: linear-gradient(to bottom, #ffffff, #f5f9fc);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+    }
+
+    .stats-box {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: 25px;
+      box-shadow: var(--box-shadow);
+      border: 1px solid #e1e8ed;
+    }
+
+    .stats-box h3 {
+      font-size: 1.2rem;
+      color: var(--primary-color);
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--medium-gray);
+      display: flex;
+      align-items: center;
+    }
+
+    .stats-box h3::before {
+      content: "";
+      display: inline-block;
+      width: 6px;
+      height: 24px;
+      background: var(--accent-color);
+      border-radius: 3px;
+      margin-right: 12px;
+    }
+
+    .histogram-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+      height: 40px;
+    }
+
+    .histogram-row .label-section {
+      display: flex;
+      align-items: center;
+      width: 180px;
+      padding-right: 15px;
+    }
+
+    .histogram-row .label-section .color-swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      margin-right: 10px;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .histogram-row .label-section .label-text {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--primary-color);
+    }
+
+    .histogram-row .bar-container {
+      flex: 1;
+      height: 26px;
+      background: var(--light-gray);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .histogram-row .bar {
+      height: 100%;
+      border-radius: 4px;
+      position: relative;
+      transition: width 0.8s cubic-bezier(0.22, 0.61, 0.36, 1);
+    }
+
+    .histogram-row .bar::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      background: linear-gradient(90deg, 
+        rgba(255,255,255,0.15) 0%, 
+        rgba(255,255,255,0.3) 50%, 
+        rgba(255,255,255,0.15) 100%);
+    }
+
+    .histogram-row .count {
+      width: 60px;
+      text-align: right;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--primary-color);
+      padding-left: 15px;
+    }
+
+    .no-data {
+      text-align: center;
+      color: #95a5a6;
+      padding: 30px;
+      font-style: italic;
+    }
+
+    /* ---------- 响应式设计 ---------- */
+    @media (max-width: 992px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 30px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .filter-group {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .filter-group label {
+        margin-bottom: 8px;
+      }
+      
+      .container {
+        padding: 20px;
+      }
+      
+      #annotation-container {
+        padding: 15px;
+      }
+    }
+
+    @media (max-width: 576px) {
+      .histogram-row .label-section {
+        width: 140px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="annotation-summary-title"></h1>
+
+    <div class="controls">
+      <div class="control-group">
+        <label for="text-search" id="label-text-search"></label>
+        <input type="text" id="text-search" placeholder="" />
+      </div>
+      <div class="control-group">
+        <label for="comment-search" id="label-comment-search"></label>
+        <input
+          type="text"
+          id="comment-search"
+          placeholder=""
+        />
+      </div>
+      <div class="control-group">
+        <label for="text-op" id="label-text-op"></label>
+        <select id="text-op">
+          <option value="AND">AND</option>
+          <option value="OR">OR</option>
+          <option value="NOT">NOT</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label for="items-per-row" id="label-items-per-row"></label>
+        <input type="number" id="items-per-row" min="1" max="3" value="1" />
+      </div>
+      <div class="control-group">
+        <label for="combine-op" id="label-combine-op"></label>
+        <select id="combine-op">
+          <option value="AND">AND</option>
+          <option value="OR">OR</option>
+          <option value="NOT">NOT</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="annotation-container"></div>
+    <div id="no-results" style="display: none;"></div>
+
+    <div class="filters-container">
+      <div class="filter-group">
+        <label id="label-color-filter"></label>
+        <div class="colors-list" id="colors-list"></div>
+        <label for="color-op" id="label-color-op"></label>
+        <select id="color-op">
+          <option value="OR">OR</option>
+          <option value="AND">AND</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label id="label-tag-filter"></label>
+        <div class="tags-list" id="tags-list"></div>
+        <label for="tag-op" id="label-tag-op"></label>
+        <select id="tag-op">
+          <option value="OR">OR</option>
+          <option value="AND">AND</option>
+        </select>
+      </div>
+    </div>
+    
+    <!-- 统计区 -->
+    <div class="stats-container">
+      <h2 id="stats-title"></h2>
+      <div class="stats-grid">
+        <div class="stats-box">
+          <h3 id="stats-color"></h3>
+          <div id="color-histogram"></div>
+        </div>
+        <div class="stats-box">
+          <h3 id="stats-tag"></h3>
+          <div id="tag-histogram"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // —— 简单的 getString/i18n 方案 ——
+    const LOCALE = (navigator.language || navigator.userLanguage || 'zh-CN').toLowerCase().startsWith('zh') ? 'zh-CN' : 'en-US';
+    const I18N = {
+      'zh-CN': {
+        annotationSummaryTitle: 'Zotero 标注总结',
+        searchLabelText: '标注文本搜索:',
+        searchLabelComment: '评论搜索:',
+        searchPlaceholderText: '搜索标注文字...',
+        searchPlaceholderComment: '搜索评论内容...',
+        logicLabelText: '文本 & 评论逻辑:',
+        itemsPerRowLabel: '每行显示数量:',
+        combineLogicLabel: '文本与筛选逻辑:',
+        colorFilterLabel: '颜色筛选:',
+        colorLogicLabel: '颜色逻辑:',
+        tagFilterLabel: '标签筛选:',
+        tagLogicLabel: '标签逻辑:',
+        noResults: '没有找到匹配的批注',
+        statsTitle: '统计分布',
+        statsColor: '颜色分布',
+        statsTag: '标签分布',
+        noTag: '无标签',
+        noData: '暂无数据',
+        pageTitle: 'Zotero 标注总结',
+      },
+      'en-US': {
+        annotationSummaryTitle: 'Zotero Annotation Summary',
+        searchLabelText: 'Annotation Text Search:',
+        searchLabelComment: 'Comment Search:',
+        searchPlaceholderText: 'Search annotation text...',
+        searchPlaceholderComment: 'Search comment content...',
+        logicLabelText: 'Text & Comment Logic:',
+        itemsPerRowLabel: 'Items Per Row:',
+        combineLogicLabel: 'Text & Filter Logic:',
+        colorFilterLabel: 'Color Filter:',
+        colorLogicLabel: 'Color Logic:',
+        tagFilterLabel: 'Tag Filter:',
+        tagLogicLabel: 'Tag Logic:',
+        noResults: 'No matching annotations found',
+        statsTitle: 'Statistics',
+        statsColor: 'Color Distribution',
+        statsTag: 'Tag Distribution',
+        noTag: 'No Tag',
+        noData: 'No Data',
+        pageTitle: 'Zotero Annotation Summary',
+      }
+    };
+    function getString(key) {
+      return I18N[LOCALE][key] || I18N['en-US'][key] || key;
+    }
+    function fillI18nText() {
+      document.documentElement.lang = LOCALE;
+      document.getElementById('page-title').textContent = getString('pageTitle');
+      document.getElementById('annotation-summary-title').textContent = getString('annotationSummaryTitle');
+      document.getElementById('label-text-search').textContent = getString('searchLabelText');
+      document.getElementById('text-search').placeholder = getString('searchPlaceholderText');
+      document.getElementById('label-comment-search').textContent = getString('searchLabelComment');
+      document.getElementById('comment-search').placeholder = getString('searchPlaceholderComment');
+      document.getElementById('label-text-op').textContent = getString('logicLabelText');
+      document.getElementById('label-items-per-row').textContent = getString('itemsPerRowLabel');
+      document.getElementById('label-combine-op').textContent = getString('combineLogicLabel');
+      document.getElementById('label-color-filter').textContent = getString('colorFilterLabel');
+      document.getElementById('label-color-op').textContent = getString('colorLogicLabel');
+      document.getElementById('label-tag-filter').textContent = getString('tagFilterLabel');
+      document.getElementById('label-tag-op').textContent = getString('tagLogicLabel');
+      document.getElementById('stats-title').textContent = getString('statsTitle');
+      document.getElementById('stats-color').textContent = getString('statsColor');
+      document.getElementById('stats-tag').textContent = getString('statsTag');
+      document.getElementById('no-results').textContent = getString('noResults');
+    }
+    document.addEventListener('DOMContentLoaded', fillI18nText);
+
+    // —— 全局 annotations 数组，初始为空，后续由"Zotero 加载"或"文件输入"填充 —— 
+    let annotations = [];
+
+    // —— 将 tags 字符串拆分成数组，并去掉 "#" 前缀 —— 
+    function preprocessTags(arr) {
+      arr.forEach((a) => {
+        a._tagsArray = (a.tags || "")
+          .split(",")
+          .map((t) => t.trim().replace(/^#/, ""))
+          .filter((t) => t !== "");
+      });
+    }
+
+    // —— 三份"中间结果"数组 —— 
+    let textResults = [];
+    let bottomResults = [];
+    let combinedResults = [];
+
+    // —— 底部可选 tags/colors 集合 —— 
+    let baseBottomTags = new Set();
+    let baseBottomColors = new Set();
+
+    // —— 页面元素引用 —— 
+    const textInput = document.getElementById("text-search");
+    const commentInput = document.getElementById("comment-search");
+    const textOpSelect = document.getElementById("text-op");
+    const itemsPerRowInput = document.getElementById("items-per-row");
+    const combineOpSelect = document.getElementById("combine-op");
+    const tagOpSelect = document.getElementById("tag-op");
+    const colorOpSelect = document.getElementById("color-op");
+
+    const annotationContainer = document.getElementById("annotation-container");
+    const noResultsDiv = document.getElementById("no-results");
+    const tagsListContainer = document.getElementById("tags-list");
+    const colorsListContainer = document.getElementById("colors-list");
+
+    let selectedTags = new Set();
+    let selectedColors = new Set();
+
+    // —— 在页面加载后，优先检查 URL 是否包含 file 参数 —— 
+    (async function initFromZoteroFile() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const encodedFile = params.get("file");
+        if (encodedFile) {
+          // 如果存在 file 参数，就尝试通过 Zotero API 读取
+          console.log("index.html: 找到 file 参数，准备从临时文件读取…", encodedFile);
+
+          // 先拿到父窗口的 Zotero 对象
+          const parentZotero = window.parent.Zotero;
+          if (!parentZotero) {
+            console.warn("index.html: window.parent.Zotero 未定义，无法通过 Zotero API 读取");
+          } else {
+            // 解码为 fileUri，例如 "file:///C:/Users/.../annotation-summary-xxx.json"
+            const fileUri = decodeURIComponent(encodedFile);
+            console.log("index.html: 解码后 fileUri =", fileUri);
+            try {
+              // 把 fileUri 转为 nsIFile
+              const ioService = Components.classes["@mozilla.org/network/io-service;1"]
+                .getService(Components.interfaces.nsIIOService);
+              const fileURL = ioService.newURI(fileUri, null, null)
+                .QueryInterface(Components.interfaces.nsIFileURL);
+              const nsIFile = fileURL.file;
+              // 通过 Zotero.File.getContents 读取
+              const jsonStr = await parentZotero.File.getContents(nsIFile);
+              if (!jsonStr) {
+                console.warn("index.html: 读取到的 JSON 字符串为空");
+              } else {
+                const data = JSON.parse(jsonStr);
+                if (!Array.isArray(data)) {
+                  console.warn("index.html: 解析得到的数据不是数组，跳过");
+                } else {
+                  annotations = data;
+                  preprocessTags(annotations);
+                  console.log("index.html: 已从临时文件加载注释，共", annotations.length, "条");
+                  filterAnnotations();
+                  return; // 成功加载后就不执行后续的 filterAnnotations()
+                }
+              }
+            } catch (e) {
+              console.error("index.html: 通过 Zotero API 读取临时文件时出错：", e);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("index.html: initFromZoteroFile 异常：", e);
+      }
+      // 如果没有 file 参数或读取失败，则进行初始渲染
+      console.log("index.html: 未通过 URL 参数成功加载或无参数，执行初始渲染。");
+      filterAnnotations();
+    })();
+
+    // —— 主要过滤函数 —— 
+    function filterAnnotations() {
+      const textQuery = textInput.value.trim().toLowerCase();
+      const commentQuery = commentInput.value.trim().toLowerCase();
+      const textOp = textOpSelect.value;
+      const combineOp = combineOpSelect.value;
+      const tagOp = tagOpSelect.value;
+      const colorOp = colorOpSelect.value;
+
+      const hasTextQuery = textQuery !== "";
+      const hasCommentQuery = commentQuery !== "";
+      const hasTagFilters = selectedTags.size > 0;
+      const hasColorFilters = selectedColors.size > 0;
+
+      // —— ① 根据"标注文字 + comment"做第一轮筛选，得到 textResults —— 
+      textResults = annotations.filter((a) => {
+        const textContent = (a.text || "").toLowerCase();
+        const commentContent = (a.comment || "").toLowerCase();
+        const matchText = hasTextQuery
+          ? textContent.includes(textQuery)
+          : false;
+        const matchComment = hasCommentQuery
+          ? commentContent.includes(commentQuery)
+          : false;
+
+        if (!hasTextQuery && !hasCommentQuery) return true;
+        if (hasTextQuery && hasCommentQuery) {
+          if (textOp === "AND") return matchText && matchComment;
+          if (textOp === "OR") return matchText || matchComment;
+          if (textOp === "NOT") return matchText && !matchComment;
+        } else if (hasTextQuery) {
+          if (textOp === "NOT") return matchText;
+          return matchText;
+        } else { // Only hasCommentQuery
+          if (textOp === "NOT") return !matchComment;
+          return matchComment;
+        }
+        return false;
+      });
+
+      // —— ② 计算 Tag 可选来源：如果有 Color 筛选，则从 textResults 再筛选出颜色匹配项；否则直接用 textResults —— 
+      let tagsSource = textResults;
+      if (selectedColors.size > 0) {
+        tagsSource = textResults.filter((a) =>
+          Array.from(selectedColors).includes(a.color) 
+        );
+      }
+      
+      if (selectedColors.size > 0) {
+        tagsSource = textResults.filter(a => {
+            if (!a.color && selectedColors.size > 0) return false; 
+            if (colorOp === "AND") {
+                 return Array.from(selectedColors).includes(a.color);
+            } else { // OR
+                return Array.from(selectedColors).includes(a.color);
+            }
+        });
+      }
+
+      // —— ③ 计算 Color 可选来源：如果有 Tag 筛选，则从 textResults 再筛选出标签匹配项；否则直接用 textResults —— 
+      let colorsSource = textResults;
+      if (selectedTags.size > 0) {
+        colorsSource = textResults.filter((a) => {
+          const aTags = a._tagsArray;
+          if (selectedTags.has("__NO_TAG__")) {
+            return aTags.length === 0;
+          }
+          if (tagOp === "AND") {
+            return Array.from(selectedTags).every((t) => aTags.includes(t));
+          } else { // OR
+            return Array.from(selectedTags).some((t) => aTags.includes(t));
+          }
+        });
+      }
+
+      // —— ④ 将"标签 + 颜色"过滤（基于全量 annotations）得到 bottomResults —— 
+      bottomResults = annotations.filter((a) => {
+        let matchTag = true, 
+          matchColor = true; 
+
+        if (selectedTags.size > 0) {
+          const aTags = a._tagsArray;
+          if (selectedTags.has("__NO_TAG__")) {
+            matchTag = aTags.length === 0;
+          } else if (aTags.length === 0 && selectedTags.size > 0) {
+            matchTag = false;
+          } else if (tagOp === "AND") {
+            matchTag = Array.from(selectedTags).every((t) => aTags.includes(t));
+          } else { // OR
+            matchTag = Array.from(selectedTags).some((t) => aTags.includes(t));
+          }
+        }
+
+        if (selectedColors.size > 0) {
+            if (!a.color && selectedColors.size > 0) { 
+                matchColor = false;
+            } else if (colorOp === "AND") {
+            if (selectedColors.size > 1) matchColor = false; 
+            else matchColor = Array.from(selectedColors).every((c) => a.color === c); 
+          } else { // OR
+            matchColor = Array.from(selectedColors).some((c) => a.color === c);
+          }
+        }
+        return matchTag && matchColor;
+      });
+
+      // —— ⑤ 合并"文字筛选"与"底部筛选"结果 —— 
+      const textActive = hasTextQuery || hasCommentQuery;
+      const bottomActive = hasTagFilters || hasColorFilters;
+
+      if (!textActive && !bottomActive) {
+        combinedResults = annotations.slice();
+      } else if (textActive && !bottomActive) {
+        combinedResults = textResults.slice();
+      } else if (!textActive && bottomActive) {
+        combinedResults = bottomResults.slice();
+      } else { // Both text and bottom filters are active
+        if (combineOp === "AND") {
+          combinedResults = textResults.filter((a) =>
+            bottomResults.includes(a)
+          );
+        } else if (combineOp === "OR") {
+          combinedResults = Array.from(
+            new Set([...textResults, ...bottomResults])
+          );
+        } else if (combineOp === "NOT") {
+          combinedResults = textResults.filter((a) => !bottomResults.includes(a));
+        }
+      }
+
+      // —— ⑥ 更新底部 Tag/Color 可选项 —— 
+      baseBottomTags.clear();
+      let sourceForTagOptions = annotations; 
+
+      if (textActive || hasColorFilters) { 
+        sourceForTagOptions = tagsSource;
+      }
+
+      if (!hasTextQuery && !hasCommentQuery && !hasTagFilters && !hasColorFilters) {
+          annotations.forEach((a) => {
+            a._tagsArray.forEach((t) => baseBottomTags.add(t));
+          });
+      } else {
+          (hasTextQuery || hasCommentQuery || hasColorFilters ? tagsSource : annotations).forEach((a) => {
+             a._tagsArray.forEach((t) => baseBottomTags.add(t));
+          });
+      }
+
+      baseBottomColors.clear();
+      (hasTextQuery || hasCommentQuery || hasTagFilters ? colorsSource : annotations).forEach((a) => {
+        if (a.color) baseBottomColors.add(a.color);
+      });
+
+      renderBottomOptions();
+
+      // —— ⑦ 渲染最终注释到页面 —— 
+      renderAnnotations();
+      renderStats(); 
+    }
+
+    // —— 渲染注释条目 —— 
+    function renderAnnotations() {
+      annotationContainer.innerHTML = "";
+      const perRow = Math.min(3, parseInt(itemsPerRowInput.value, 10) || 1);
+      annotationContainer.style.gridTemplateColumns = `repeat(${perRow}, 1fr)`;
+
+      if (combinedResults.length === 0) {
+        noResultsDiv.style.display = "block";
+      } else {
+        noResultsDiv.style.display = "none";
+      }
+
+      combinedResults.forEach((a) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "annotation-item";
+
+        if (a.uri) {
+          wrapper.style.cursor = "pointer";
+          wrapper.addEventListener("click", (e) => {
+            e.preventDefault();
+            window.location.assign(a.uri);
+          });
+        }
+
+        const header = document.createElement("div");
+        header.className = "annotation-header";
+        const colorIndicator = document.createElement("div");
+        colorIndicator.className = "annotation-color";
+        colorIndicator.style.backgroundColor = a.color || "#ccc";
+        header.appendChild(colorIndicator);
+        wrapper.appendChild(header);
+
+        const textDiv = document.createElement("div");
+        textDiv.className = "annotation-text";
+        textDiv.textContent = a.text || "";
+        wrapper.appendChild(textDiv);
+
+        if (a.comment) {
+          const commentDiv = document.createElement("div");
+          commentDiv.className = "annotation-comment";
+          commentDiv.textContent = a.comment;
+          commentDiv.style.borderLeft = `3px solid ${a.color || "var(--accent-color)"}`;
+          wrapper.appendChild(commentDiv);
+        }
+
+        if (a._tagsArray && a._tagsArray.length > 0) {
+          const tagsContainer = document.createElement("div");
+          tagsContainer.className = "annotation-tags";
+          a._tagsArray.forEach((tag) => {
+            const tagElement = document.createElement("span");
+            tagElement.className = "annotation-tag";
+            tagElement.textContent = tag;
+            tagsContainer.appendChild(tagElement);
+          });
+          wrapper.appendChild(tagsContainer);
+        }
+
+        if (a.uri) {
+          const uriElement = document.createElement("div");
+          uriElement.className = "annotation-uri";
+          uriElement.textContent = a.uri;
+          wrapper.appendChild(uriElement);
+        }
+
+        if (a.sourceTitle || a.dateAdded) {
+          const infoDiv = document.createElement("div");
+          infoDiv.className = "annotation-hover-info";
+          let infoText = "";
+          if (a.sourceTitle) infoText += `${a.sourceTitle}`;
+          if (a.dateAdded) {
+            const date = new Date(a.dateAdded);
+            const formatted = date.toLocaleString();
+            infoText += (a.sourceTitle ? ` | ${formatted}` : formatted);
+          }
+          infoDiv.textContent = infoText;
+          wrapper.appendChild(infoDiv);
+        }
+        annotationContainer.appendChild(wrapper);
+      });
+    }
+
+    // —— 渲染底部标签/颜色筛选可选项 —— 
+    function renderBottomOptions() {
+      tagsListContainer.innerHTML = "";
+      const noTagValue = "__NO_TAG__";
+      const noTagEl = document.createElement("span");
+      noTagEl.className = "tag-item";
+      noTagEl.textContent = getString('noTag');
+      if (selectedTags.has(noTagValue)) noTagEl.classList.add("selected");
+      noTagEl.addEventListener("click", () => {
+        if (selectedTags.has(noTagValue)) selectedTags.delete(noTagValue);
+        else selectedTags.add(noTagValue);
+        filterAnnotations();
+      });
+      tagsListContainer.appendChild(noTagEl);
+
+      const sortedTags = Array.from(baseBottomTags).sort((a, b) =>
+        a.localeCompare(b, "zh-CN")
+      );
+      sortedTags.forEach((tag) => {
+        const tagEl = document.createElement("span");
+        tagEl.className = "tag-item";
+        tagEl.textContent = tag;
+        if (selectedTags.has(tag)) tagEl.classList.add("selected");
+        tagEl.addEventListener("click", () => {
+          if (selectedTags.has(tag)) selectedTags.delete(tag);
+          else selectedTags.add(tag);
+          filterAnnotations();
+        });
+        tagsListContainer.appendChild(tagEl);
+      });
+
+      colorsListContainer.innerHTML = "";
+      const sortedColors = Array.from(baseBottomColors).sort();
+      sortedColors.forEach((col) => {
+        const colEl = document.createElement("div");
+        colEl.className = "color-item";
+        colEl.style.backgroundColor = col;
+        if (selectedColors.has(col)) colEl.classList.add("selected");
+        colEl.addEventListener("click", () => {
+          if (selectedColors.has(col)) selectedColors.delete(col);
+          else selectedColors.add(col);
+          filterAnnotations();
+        });
+        colorsListContainer.appendChild(colEl);
+      });
+    }
+
+    // —— 渲染直方图 ——
+    function renderHistogram(container, data, isColor = false) {
+      container.innerHTML = "";
+      
+      if (Object.keys(data).length === 0) {
+        container.innerHTML = '<div class="no-data">' + getString('noData') + '</div>';
+        return;
+      }
+      
+      const keys = Object.keys(data);
+      const maxVal = Math.max(...Object.values(data));
+      
+      keys.sort((a, b) => (data[b] - data[a]) || a.localeCompare(b, 'zh-CN'));
+      
+      keys.forEach((key) => {
+        const val = data[key];
+        const row = document.createElement('div');
+        row.className = 'histogram-row';
+        
+        // 标签部分
+        const labelSection = document.createElement('div');
+        labelSection.className = 'label-section';
+        
+        if (isColor) {
+          const swatch = document.createElement('div');
+          swatch.className = 'color-swatch';
+          swatch.style.backgroundColor = key;
+          labelSection.appendChild(swatch);
+        }
+        
+        const labelText = document.createElement('span');
+        labelText.className = 'label-text';
+        labelText.textContent = key;
+        labelSection.appendChild(labelText);
+        
+        row.appendChild(labelSection);
+        
+        // 柱状条部分
+        const barContainer = document.createElement('div');
+        barContainer.className = 'bar-container';
+        
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.backgroundColor = isColor ? key : '#5c6bc0';
+        bar.style.width = `${(val / maxVal) * 100}%`;
+        barContainer.appendChild(bar);
+        
+        row.appendChild(barContainer);
+        
+        // 计数部分
+        const count = document.createElement('div');
+        count.className = 'count';
+        count.textContent = val;
+        row.appendChild(count);
+        
+        container.appendChild(row);
+      });
+    }
+
+    // —— 统计并渲染 color/tag 直方图 ——
+    function renderStats() {
+      // 只统计当前 combinedResults
+      const colorCounts = {};
+      const tagCounts = {};
+      combinedResults.forEach(a => {
+        if (a.color) colorCounts[a.color] = (colorCounts[a.color] || 0) + 1;
+        (a._tagsArray || []).forEach(t => {
+          tagCounts[t] = (tagCounts[t] || 0) + 1;
+        });
+      });
+      
+      // 颜色直方图
+      const colorHist = document.getElementById('color-histogram');
+      renderHistogram(colorHist, colorCounts, true);
+      
+      // 标签直方图
+      const tagHist = document.getElementById('tag-histogram');
+      renderHistogram(tagHist, tagCounts, false);
+    }
+
+    // —— 绑定顶部控件变化事件 —— 
+    textInput.addEventListener("input", () => {
+      filterAnnotations();
+    });
+    commentInput.addEventListener("input", () => {
+      filterAnnotations();
+    });
+    textOpSelect.addEventListener("change", filterAnnotations);
+    itemsPerRowInput.addEventListener("change", renderAnnotations);
+    combineOpSelect.addEventListener("change", filterAnnotations);
+    tagOpSelect.addEventListener("change", filterAnnotations);
+    colorOpSelect.addEventListener("change", filterAnnotations);
+  </script>
+</body>
+</html>

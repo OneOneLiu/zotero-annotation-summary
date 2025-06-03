@@ -1,24 +1,24 @@
 {
-  "name": "zotero-plugin-template",
+  "name": "zotero-annotation-summary",
   "type": "module",
-  "version": "3.1.0",
-  "description": "Zotero Plugin Template",
+  "version": "0.0.1",
+  "description": "A plugin for summarizing and indexing annotations",
   "config": {
-    "addonName": "Zotero Plugin Template",
-    "addonID": "addontemplate@euclpts.com",
-    "addonRef": "addontemplate",
-    "addonInstance": "AddonTemplate",
-    "prefsPrefix": "extensions.zotero.addontemplate"
+    "addonName": "annotation-summary",
+    "addonID": "annotation-summary@ldh.mail.utoronto.ca",
+    "addonRef": "annotation-summary",
+    "addonInstance": "AnnotationSummary",
+    "prefsPrefix": "extensions.zotero.annotation-summary"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/windingwind/zotero-plugin-template.git"
+    "url": "git+https://github.com/OneOneLiu/zotero-annotation-summary.git"
   },
-  "author": "windingwind",
+  "author": "oneoneliu",
   "bugs": {
-    "url": "https://github.com/windingwind/zotero-plugin-template/issues"
+    "url": "https://github.com/OneOneLiu/zotero-annotation-summary/issues"
   },
-  "homepage": "https://github.com/windingwind/zotero-plugin-template#readme",
+  "homepage": "https://github.com/OneOneLiu/zotero-annotation-summary#readme",
   "license": "AGPL-3.0-or-later",
   "scripts": {
     "start": "zotero-plugin serve",
@@ -30,17 +30,17 @@
     "update-deps": "npm update --save"
   },
   "dependencies": {
-    "zotero-plugin-toolkit": "^5.0.0"
+    "zotero-plugin-toolkit": "^5.0.0-1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.25.1",
-    "@types/node": "^22.15.29",
-    "eslint": "^9.28.0",
+    "@eslint/js": "^9.27.0",
+    "@types/node": "^22.15.19",
+    "eslint": "^9.27.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.33.0",
+    "typescript-eslint": "^8.32.1",
     "zotero-plugin-scaffold": "^0.6.0",
-    "zotero-types": "^4.0.0"
+    "zotero-types": "^4.0.0-beta.10"
   },
   "prettier": {
     "printWidth": 80,
