@@ -11,7 +11,7 @@
 
 ## Introduction
 
-**Zotero Annotation Summary Viewer** is a plugin that loads and displays all annotations (highlights, notes, etc.) from your Zotero library in a single summary page. It supports keyword searches, color/tag filtering, hover previews of source information and timestamps, direct hyperlink jumps to the original annotation in Zotero, and basic data statistics.
+**Zotero Annotation Summary Viewer** is a plugin that loads and displays all annotations (highlights) from your Zotero library in a single summary page. It supports keyword searches, color/tag filtering, hover previews of source information and timestamps, direct hyperlink jumps to the original annotation in Zotero, and simple data statistics.
 
 ---
 
@@ -31,7 +31,7 @@
 
 ### 1. Load and Display Annotations
 
-- The plugin automatically loads every annotation (highlights, notes, etc.) from your Zotero library and displays them in a unified summary page.
+- The plugin automatically loads every annotation (highlights) from your Zotero library and displays them in a summary page.
 
   <img src="./doc/images/introduction.png" alt="Annotation Summary Introduction" width="800" />
 
@@ -46,8 +46,7 @@
   <img src="./doc/images/indexing.gif" alt="Keyword Search" width="800" />
 
 - **Color & Tag Filtering**  
-  - Filter annotations by highlight color or by custom tags.
-  - You can combine filters (AND, OR, NOT) for precise control.
+  - Filter annotations by highlight color or by tags.
 
   <img src="./doc/images/filtering.gif" alt="Color and Tag Filtering" width="800" />
 

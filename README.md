@@ -11,7 +11,7 @@
 
 ## 简介
 
-一个基于用于在 Zotero 显示文库中标注总结的插件。 可以加载并展示文库中的注释，支持按检索词检索、按颜色/标签过滤、鼠标悬浮预览来源和时间，点击直接跳转以及简易数据统计功能。
+一个用于在 Zotero 显示文库中标注总结的插件。 可以加载并展示文库中的注释，支持按检索词检索、按颜色/标签过滤、鼠标悬浮预览来源和时间、点击直接跳转以及简易数据统计功能。
 
 ## 使用方式
 
@@ -22,19 +22,18 @@
 
 ## 功能
 
-- 将从 Zotero 中的annotation加载并展示到一个总结页面中。
+- 将从 Zotero 中的高亮注释加载并展示到一个总结页面中。
 
 <img src="./doc/images/introduction.png" alt="introduction" width="800">
 
 ### 2. 搜索与过滤
 
-- 按注释内容或评论关键字搜索。
+- 按注释高亮内容或评论关键字搜索。
 - 可选与或非逻辑
 
 <img src="./doc/images/indexing.gif" alt="indexing" width="800">
 
 - 按注释颜色与标签进行二次筛选。
-- 支持组合逻辑（AND、OR、NOT），可灵活控制搜索/过滤关系。
 
 <img src="./doc/images/filtering.gif" alt="filtering" width="800">
 
