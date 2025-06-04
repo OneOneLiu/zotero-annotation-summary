@@ -729,6 +729,7 @@
         recent7days: '最近一周',
         recent30days: '最近一月',
         recent365days: '最近一年',
+        dateRangeAll: '全部时间',
         displayCountZH: '共显示 {count} 条标注',
         pageTitle: 'Zotero 标注总结',
       },
@@ -752,6 +753,7 @@
         noTag: 'No Tag',
         noData: 'No Data',
         daterangeLabel: 'Date Range:',
+        dateRangeAll: 'All',
         recent1day: 'Recent 1 Day',
         recent3days: 'Recent 3 Days',
         recent7days: 'Recent 7 Days',
@@ -784,7 +786,7 @@
       document.getElementById('stats-tag').textContent = getString('statsTag');
       document.getElementById('no-results').textContent = getString('noResults');
       document.getElementById('label-date-preset').textContent = getString('daterangeLabel');
-      document.getElementById('date-preset-all').textContent = getString('dateRangeAll') || '所有';
+      document.getElementById('date-preset-all').textContent = getString('dateRangeAll');
       document.getElementById('date-preset-1').textContent = getString('recent1day');
       document.getElementById('date-preset-3').textContent = getString('recent3days');
       document.getElementById('date-preset-7').textContent = getString('recent7days');
