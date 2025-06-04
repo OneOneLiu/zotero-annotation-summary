@@ -158,7 +158,7 @@
       border: 1px solid var(--medium-gray);
       border-radius: var(--border-radius);
       box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
-      margin-bottom: 30px;
+      margin-bottom: 10px;
     }
 
     /* 自定义滚动条 */
@@ -180,6 +180,14 @@
       background: #95a5a6;
     }
 
+    /* 显示条目计数的区域 */
+    #display-count {
+      text-align: right;
+      font-size: 0.9rem;
+      color: var(--dark-gray);
+      margin-bottom: 30px;
+    }
+
     /* ---------- 单个注释块 ---------- */
     .annotation-item {
       cursor: pointer;
@@ -193,7 +201,6 @@
       background-color: white;
       display: flex;
       flex-direction: column;
-      /* height: 100%; */
       min-height: 230px;
       max-height: 250px;
       overflow: auto;
@@ -245,7 +252,7 @@
     }
 
     .annotation-comment::before {
-      content: "“";
+      content: "";
       position: absolute;
       top: -10px;
       left: 5px;
@@ -363,6 +370,7 @@
       border: 1px solid var(--medium-gray);
       font-weight: 600;
       color: #5c6bc0;
+      position: relative;
     }
 
     .tag-item:hover {
@@ -376,6 +384,22 @@
       border-color: #5c6bc0;
     }
 
+    /* 排除逻辑下的标签样式，用红线表示 */
+    .tag-item.excluded {
+      position: relative;
+    }
+
+    .tag-item.excluded::after {
+      content: "";
+      position: absolute;
+      left: 5%;
+      right: 5%;
+      bottom: 2px;
+      height: 2px;
+      background-color: red;
+      border-radius: 1px;
+    }
+
     .color-item {
       width: 32px;
       height: 32px;
@@ -384,6 +408,7 @@
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
       cursor: pointer;
       transition: var(--transition);
+      position: relative;
     }
 
     .color-item:hover {
@@ -394,6 +419,22 @@
       transform: scale(1.25);
       border: 2px solid var(--primary-color);
       box-shadow: 0 0 0 2px white, 0 0 0 4px var(--primary-color);
+    }
+
+    /* 排除逻辑下的颜色样式，用红线表示 */
+    .color-item.excluded {
+      position: relative;
+    }
+
+    .color-item.excluded::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -4px;
+      height: 3px;
+      background-color: red;
+      border-radius: 1px;
     }
 
     .filter-group select {
@@ -591,6 +632,20 @@
         <label for="items-per-row" id="label-items-per-row"></label>
         <input type="number" id="items-per-row" min="1" max="3" value="1" />
       </div>
+
+      <!-- 仅保留"日期范围"下拉菜单 -->
+      <div class="control-group">
+        <label for="date-preset" id="label-date-preset"></label>
+        <select id="date-preset">
+          <option value="all" id="date-preset-all"></option>
+          <option value="1" id="date-preset-1"></option>
+          <option value="3" id="date-preset-3"></option>
+          <option value="7" id="date-preset-7"></option>
+          <option value="30" id="date-preset-30"></option>
+          <option value="365" id="date-preset-365"></option>
+        </select>
+      </div>
+
       <div class="control-group">
         <label for="combine-op" id="label-combine-op"></label>
         <select id="combine-op">
@@ -602,6 +657,7 @@
     </div>
 
     <div id="annotation-container"></div>
+    <div id="display-count"></div>
     <div id="no-results" style="display: none;"></div>
 
     <div class="filters-container">
@@ -612,6 +668,7 @@
         <select id="color-op">
           <option value="OR">OR</option>
           <option value="AND">AND</option>
+          <option value="NOT">NOT</option>
         </select>
       </div>
 
@@ -622,6 +679,7 @@
         <select id="tag-op">
           <option value="OR">OR</option>
           <option value="AND">AND</option>
+          <option value="NOT">NOT</option>
         </select>
       </div>
     </div>
@@ -643,7 +701,7 @@
   </div>
 
   <script>
-    // —— 简单的 getString/i18n 方案 ——
+    // —— 简单的 getString/i18n 方案 —— 
     const LOCALE = (navigator.language || navigator.userLanguage || 'zh-CN').toLowerCase().startsWith('zh') ? 'zh-CN' : 'en-US';
     const I18N = {
       'zh-CN': {
@@ -665,6 +723,13 @@
         statsTag: '标签分布',
         noTag: '无标签',
         noData: '暂无数据',
+        daterangeLabel: '日期范围:',
+        recent1day: '最近一天',
+        recent3days: '最近三天',
+        recent7days: '最近一周',
+        recent30days: '最近一月',
+        recent365days: '最近一年',
+        displayCountZH: '共显示 {count} 条标注',
         pageTitle: 'Zotero 标注总结',
       },
       'en-US': {
@@ -686,6 +751,13 @@
         statsTag: 'Tag Distribution',
         noTag: 'No Tag',
         noData: 'No Data',
+        daterangeLabel: 'Date Range:',
+        recent1day: 'Recent 1 Day',
+        recent3days: 'Recent 3 Days',
+        recent7days: 'Recent 7 Days',
+        recent30days: 'Recent 1 Month',
+        recent365days: 'Recent 1 Year',
+        displayCountEN: 'Displaying {count} annotations',
         pageTitle: 'Zotero Annotation Summary',
       }
     };
@@ -711,6 +783,13 @@
       document.getElementById('stats-color').textContent = getString('statsColor');
       document.getElementById('stats-tag').textContent = getString('statsTag');
       document.getElementById('no-results').textContent = getString('noResults');
+      document.getElementById('label-date-preset').textContent = getString('daterangeLabel');
+      document.getElementById('date-preset-all').textContent = getString('dateRangeAll') || '所有';
+      document.getElementById('date-preset-1').textContent = getString('recent1day');
+      document.getElementById('date-preset-3').textContent = getString('recent3days');
+      document.getElementById('date-preset-7').textContent = getString('recent7days');
+      document.getElementById('date-preset-30').textContent = getString('recent30days');
+      document.getElementById('date-preset-365').textContent = getString('recent365days');
     }
     document.addEventListener('DOMContentLoaded', fillI18nText);
 
@@ -744,8 +823,10 @@
     const combineOpSelect = document.getElementById("combine-op");
     const tagOpSelect = document.getElementById("tag-op");
     const colorOpSelect = document.getElementById("color-op");
+    const datePresetSelect = document.getElementById("date-preset");
 
     const annotationContainer = document.getElementById("annotation-container");
+    const displayCountDiv = document.getElementById("display-count");
     const noResultsDiv = document.getElementById("no-results");
     const tagsListContainer = document.getElementById("tags-list");
     const colorsListContainer = document.getElementById("colors-list");
@@ -808,6 +889,22 @@
 
     // —— 主要过滤函数 —— 
     function filterAnnotations() {
+      // —— 根据"日期预设"计算 dateStart/dateEnd —— 
+      const presetVal = datePresetSelect.value;
+      let dateStart = null;
+      let dateEnd = null;
+      if (presetVal !== "all") {
+        const days = parseInt(presetVal, 10);
+        const today = new Date();
+        const startDate = new Date(today);
+        startDate.setDate(today.getDate() - days);
+        // 对比时，仅用 YYYY-MM-DD 即可
+        dateStart = new Date(startDate.toISOString().slice(0, 10));
+        const endDate = new Date(today.toISOString().slice(0, 10));
+        endDate.setHours(23, 59, 59, 999);
+        dateEnd = endDate;
+      }
+
       const textQuery = textInput.value.trim().toLowerCase();
       const commentQuery = commentInput.value.trim().toLowerCase();
       const textOp = textOpSelect.value;
@@ -819,17 +916,21 @@
       const hasCommentQuery = commentQuery !== "";
       const hasTagFilters = selectedTags.size > 0;
       const hasColorFilters = selectedColors.size > 0;
+      const hasDateFilter = dateStart !== null && dateEnd !== null;
 
-      // —— ① 根据"标注文字 + comment"做第一轮筛选，得到 textResults —— 
+      // —— ① 根据"日期预设 + 标注文字/评论"做第一轮筛选，得到 textResults —— 
       textResults = annotations.filter((a) => {
-        const textContent = (a.text || "").toLowerCase();
-        const commentContent = (a.comment || "").toLowerCase();
-        const matchText = hasTextQuery
-          ? textContent.includes(textQuery)
-          : false;
-        const matchComment = hasCommentQuery
-          ? commentContent.includes(commentQuery)
-          : false;
+        // 先判断日期范围是否通过
+        if (hasDateFilter) {
+          if (!a.dateAdded) return false;
+          const d = new Date(a.dateAdded);
+          if (d < dateStart || d > dateEnd) return false;
+        }
+        // 再判断文字/评论是否满足
+        const txt = (a.text || "").toLowerCase();
+        const cmt = (a.comment || "").toLowerCase();
+        const matchText = hasTextQuery ? txt.includes(textQuery) : false;
+        const matchComment = hasCommentQuery ? cmt.includes(commentQuery) : false;
 
         if (!hasTextQuery && !hasCommentQuery) return true;
         if (hasTextQuery && hasCommentQuery) {
@@ -837,92 +938,111 @@
           if (textOp === "OR") return matchText || matchComment;
           if (textOp === "NOT") return matchText && !matchComment;
         } else if (hasTextQuery) {
-          if (textOp === "NOT") return matchText;
+          if (textOp === "NOT") return !matchText;
           return matchText;
-        } else { // Only hasCommentQuery
+        } else { // 只有评论
           if (textOp === "NOT") return !matchComment;
           return matchComment;
         }
         return false;
       });
 
-      // —— ② 计算 Tag 可选来源：如果有 Color 筛选，则从 textResults 再筛选出颜色匹配项；否则直接用 textResults —— 
+      // —— ② 计算 Tag 可选来源：如果有 Color 筛选，则从 textResults 中再筛选出颜色匹配项；否则直接用 textResults —— 
       let tagsSource = textResults;
-      if (selectedColors.size > 0) {
+      if (hasColorFilters) {
         tagsSource = textResults.filter((a) =>
-          Array.from(selectedColors).includes(a.color) 
+          selectedColors.has(a.color)
         );
       }
-      
-      if (selectedColors.size > 0) {
-        tagsSource = textResults.filter(a => {
-            if (!a.color && selectedColors.size > 0) return false; 
-            if (colorOp === "AND") {
-                 return Array.from(selectedColors).includes(a.color);
-            } else { // OR
-                return Array.from(selectedColors).includes(a.color);
-            }
-        });
-      }
 
-      // —— ③ 计算 Color 可选来源：如果有 Tag 筛选，则从 textResults 再筛选出标签匹配项；否则直接用 textResults —— 
+      // —— ③ 计算 Color 可选来源：如果有 Tag 筛选，则从 textResults 中再筛选出标签匹配项；否则直接用 textResults —— 
       let colorsSource = textResults;
-      if (selectedTags.size > 0) {
+      if (hasTagFilters) {
         colorsSource = textResults.filter((a) => {
-          const aTags = a._tagsArray;
-          if (selectedTags.has("__NO_TAG__")) {
-            return aTags.length === 0;
-          }
-          if (tagOp === "AND") {
-            return Array.from(selectedTags).every((t) => aTags.includes(t));
-          } else { // OR
-            return Array.from(selectedTags).some((t) => aTags.includes(t));
+          const arr = a._tagsArray;
+          if (tagOp === "NOT") {
+            if (selectedTags.has("__NO_TAG__")) {
+              return arr.length > 0;
+            } else {
+              return arr.every((t) => !selectedTags.has(t));
+            }
+          } else {
+            if (selectedTags.has("__NO_TAG__")) {
+              return arr.length === 0;
+            }
+            if (arr.length === 0) {
+              return false;
+            }
+            if (tagOp === "AND") {
+              return Array.from(selectedTags).every((t) => arr.includes(t));
+            }
+            // OR
+            return Array.from(selectedTags).some((t) => arr.includes(t));
           }
         });
       }
 
-      // —— ④ 将"标签 + 颜色"过滤（基于全量 annotations）得到 bottomResults —— 
+      // —— ④ 将"标签 + 颜色 + 日期"过滤（基于全量 annotations）得到 bottomResults —— 
       bottomResults = annotations.filter((a) => {
-        let matchTag = true, 
-          matchColor = true; 
-
-        if (selectedTags.size > 0) {
-          const aTags = a._tagsArray;
-          if (selectedTags.has("__NO_TAG__")) {
-            matchTag = aTags.length === 0;
-          } else if (aTags.length === 0 && selectedTags.size > 0) {
-            matchTag = false;
-          } else if (tagOp === "AND") {
-            matchTag = Array.from(selectedTags).every((t) => aTags.includes(t));
-          } else { // OR
-            matchTag = Array.from(selectedTags).some((t) => aTags.includes(t));
+        // 1. 先判断日期
+        if (hasDateFilter) {
+          if (!a.dateAdded) return false;
+          const d = new Date(a.dateAdded);
+          if (d < dateStart || d > dateEnd) return false;
+        }
+        // 2. 判断标签
+        let matchTag = true;
+        if (hasTagFilters) {
+          const arr = a._tagsArray || [];
+          if (tagOp === "NOT") {
+            if (selectedTags.has("__NO_TAG__")) {
+              matchTag = arr.length > 0;
+            } else {
+              matchTag = arr.every((t) => !selectedTags.has(t));
+            }
+          } else {
+            if (selectedTags.has("__NO_TAG__")) {
+              matchTag = arr.length === 0;
+            } else if (arr.length === 0) {
+              matchTag = false;
+            } else if (tagOp === "AND") {
+              matchTag = Array.from(selectedTags).every((t) => arr.includes(t));
+            } else { // OR
+              matchTag = Array.from(selectedTags).some((t) => arr.includes(t));
+            }
           }
         }
-
-        if (selectedColors.size > 0) {
-            if (!a.color && selectedColors.size > 0) { 
-                matchColor = false;
-            } else if (colorOp === "AND") {
-            if (selectedColors.size > 1) matchColor = false; 
-            else matchColor = Array.from(selectedColors).every((c) => a.color === c); 
+        // 3. 判断颜色
+        let matchColor = true;
+        if (hasColorFilters) {
+          if (colorOp === "NOT") {
+            matchColor = !selectedColors.has(a.color);
+          } else if (colorOp === "AND") {
+            matchColor = selectedColors.size === 1 && selectedColors.has(a.color);
           } else { // OR
-            matchColor = Array.from(selectedColors).some((c) => a.color === c);
+            matchColor = selectedColors.has(a.color);
           }
         }
         return matchTag && matchColor;
       });
 
-      // —— ⑤ 合并"文字筛选"与"底部筛选"结果 —— 
+      // —— ⑤ 合并"文字过滤结果"与"底部过滤结果"—— 
       const textActive = hasTextQuery || hasCommentQuery;
       const bottomActive = hasTagFilters || hasColorFilters;
-
       if (!textActive && !bottomActive) {
         combinedResults = annotations.slice();
+        if (hasDateFilter) {
+          combinedResults = annotations.filter((a) => {
+            if (!a.dateAdded) return false;
+            const d = new Date(a.dateAdded);
+            return d >= dateStart && d <= dateEnd;
+          });
+        }
       } else if (textActive && !bottomActive) {
         combinedResults = textResults.slice();
       } else if (!textActive && bottomActive) {
         combinedResults = bottomResults.slice();
-      } else { // Both text and bottom filters are active
+      } else {
         if (combineOp === "AND") {
           combinedResults = textResults.filter((a) =>
             bottomResults.includes(a)
@@ -938,32 +1058,26 @@
 
       // —— ⑥ 更新底部 Tag/Color 可选项 —— 
       baseBottomTags.clear();
-      let sourceForTagOptions = annotations; 
-
-      if (textActive || hasColorFilters) { 
+      let sourceForTagOptions = annotations;
+      if (textActive || hasColorFilters) {
         sourceForTagOptions = tagsSource;
       }
-
-      if (!hasTextQuery && !hasCommentQuery && !hasTagFilters && !hasColorFilters) {
-          annotations.forEach((a) => {
-            a._tagsArray.forEach((t) => baseBottomTags.add(t));
-          });
-      } else {
-          (hasTextQuery || hasCommentQuery || hasColorFilters ? tagsSource : annotations).forEach((a) => {
-             a._tagsArray.forEach((t) => baseBottomTags.add(t));
-          });
-      }
+      sourceForTagOptions.forEach((a) => {
+        (a._tagsArray || []).forEach((t) => baseBottomTags.add(t));
+      });
 
       baseBottomColors.clear();
-      (hasTextQuery || hasCommentQuery || hasTagFilters ? colorsSource : annotations).forEach((a) => {
+      let sourceForColorOptions = annotations;
+      if (textActive || hasTagFilters) {
+        sourceForColorOptions = colorsSource;
+      }
+      sourceForColorOptions.forEach((a) => {
         if (a.color) baseBottomColors.add(a.color);
       });
 
       renderBottomOptions();
-
-      // —— ⑦ 渲染最终注释到页面 —— 
       renderAnnotations();
-      renderStats(); 
+      renderStats();
     }
 
     // —— 渲染注释条目 —— 
@@ -1045,6 +1159,16 @@
         }
         annotationContainer.appendChild(wrapper);
       });
+
+      // —— 更新底部显示的计数文字 —— 
+      const count = combinedResults.length;
+      if (LOCALE === "zh-CN") {
+        const template = getString("displayCountZH"); // "共显示 {count} 条 annotation"
+        displayCountDiv.textContent = template.replace("{count}", count);
+      } else {
+        const template = getString("displayCountEN"); // "Displaying {count} annotations"
+        displayCountDiv.textContent = template.replace("{count}", count);
+      }
     }
 
     // —— 渲染底部标签/颜色筛选可选项 —— 
@@ -1054,7 +1178,11 @@
       const noTagEl = document.createElement("span");
       noTagEl.className = "tag-item";
       noTagEl.textContent = getString('noTag');
-      if (selectedTags.has(noTagValue)) noTagEl.classList.add("selected");
+      if (tagOpSelect.value === "NOT") {
+        if (selectedTags.has(noTagValue)) noTagEl.classList.add("excluded");
+      } else {
+        if (selectedTags.has(noTagValue)) noTagEl.classList.add("selected");
+      }
       noTagEl.addEventListener("click", () => {
         if (selectedTags.has(noTagValue)) selectedTags.delete(noTagValue);
         else selectedTags.add(noTagValue);
@@ -1069,7 +1197,11 @@
         const tagEl = document.createElement("span");
         tagEl.className = "tag-item";
         tagEl.textContent = tag;
-        if (selectedTags.has(tag)) tagEl.classList.add("selected");
+        if (tagOpSelect.value === "NOT") {
+          if (selectedTags.has(tag)) tagEl.classList.add("excluded");
+        } else {
+          if (selectedTags.has(tag)) tagEl.classList.add("selected");
+        }
         tagEl.addEventListener("click", () => {
           if (selectedTags.has(tag)) selectedTags.delete(tag);
           else selectedTags.add(tag);
@@ -1084,7 +1216,11 @@
         const colEl = document.createElement("div");
         colEl.className = "color-item";
         colEl.style.backgroundColor = col;
-        if (selectedColors.has(col)) colEl.classList.add("selected");
+        if (colorOpSelect.value === "NOT") {
+          if (selectedColors.has(col)) colEl.classList.add("excluded");
+        } else {
+          if (selectedColors.has(col)) colEl.classList.add("selected");
+        }
         colEl.addEventListener("click", () => {
           if (selectedColors.has(col)) selectedColors.delete(col);
           else selectedColors.add(col);
@@ -1094,66 +1230,66 @@
       });
     }
 
-    // —— 渲染直方图 ——
+    // —— 渲染直方图 —— 
     function renderHistogram(container, data, isColor = false) {
       container.innerHTML = "";
-      
+
       if (Object.keys(data).length === 0) {
         container.innerHTML = '<div class="no-data">' + getString('noData') + '</div>';
         return;
       }
-      
+
       const keys = Object.keys(data);
       const maxVal = Math.max(...Object.values(data));
-      
+
       keys.sort((a, b) => (data[b] - data[a]) || a.localeCompare(b, 'zh-CN'));
-      
+
       keys.forEach((key) => {
         const val = data[key];
         const row = document.createElement('div');
         row.className = 'histogram-row';
-        
+
         // 标签部分
         const labelSection = document.createElement('div');
         labelSection.className = 'label-section';
-        
+
         if (isColor) {
           const swatch = document.createElement('div');
           swatch.className = 'color-swatch';
           swatch.style.backgroundColor = key;
           labelSection.appendChild(swatch);
         }
-        
+
         const labelText = document.createElement('span');
         labelText.className = 'label-text';
         labelText.textContent = key;
         labelSection.appendChild(labelText);
-        
+
         row.appendChild(labelSection);
-        
+
         // 柱状条部分
         const barContainer = document.createElement('div');
         barContainer.className = 'bar-container';
-        
+
         const bar = document.createElement('div');
         bar.className = 'bar';
         bar.style.backgroundColor = isColor ? key : '#5c6bc0';
         bar.style.width = `${(val / maxVal) * 100}%`;
         barContainer.appendChild(bar);
-        
+
         row.appendChild(barContainer);
-        
+
         // 计数部分
         const count = document.createElement('div');
         count.className = 'count';
         count.textContent = val;
         row.appendChild(count);
-        
+
         container.appendChild(row);
       });
     }
 
-    // —— 统计并渲染 color/tag 直方图 ——
+    // —— 统计并渲染 color/tag 直方图 —— 
     function renderStats() {
       // 只统计当前 combinedResults
       const colorCounts = {};
@@ -1164,28 +1300,25 @@
           tagCounts[t] = (tagCounts[t] || 0) + 1;
         });
       });
-      
+
       // 颜色直方图
       const colorHist = document.getElementById('color-histogram');
       renderHistogram(colorHist, colorCounts, true);
-      
+
       // 标签直方图
       const tagHist = document.getElementById('tag-histogram');
       renderHistogram(tagHist, tagCounts, false);
     }
 
     // —— 绑定顶部控件变化事件 —— 
-    textInput.addEventListener("input", () => {
-      filterAnnotations();
-    });
-    commentInput.addEventListener("input", () => {
-      filterAnnotations();
-    });
+    textInput.addEventListener("input", filterAnnotations);
+    commentInput.addEventListener("input", filterAnnotations);
     textOpSelect.addEventListener("change", filterAnnotations);
     itemsPerRowInput.addEventListener("change", renderAnnotations);
     combineOpSelect.addEventListener("change", filterAnnotations);
     tagOpSelect.addEventListener("change", filterAnnotations);
     colorOpSelect.addEventListener("change", filterAnnotations);
+    datePresetSelect.addEventListener("change", filterAnnotations);
   </script>
 </body>
 </html>

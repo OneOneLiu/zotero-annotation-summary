@@ -1,96 +1,93 @@
-# Zotero Annotation Summary Viewer
+# Zotero Annotation Summary
 
-[![Zotero Target Version](https://img.shields.io/badge/Zotero-7-green?style=flat-square&logo=zotero&logoColor=CC2936)](https://www.zotero.org)  
-[![Using Zotero Plugin Template](https://img.shields.io/badge/Using-Zotero%20Plugin%20Template-blue?style=flat-round&logo=github)](https://github.com/windingwind/zotero-plugin-template)  
-[![Latest Release](https://img.shields.io/github/v/release/OneOneLiu/zotero-annotation-summary)](https://github.com/OneOneLiu/zotero-annotation-summary/releases)  
-![Release Date](https://img.shields.io/github/release-date/OneOneLiu/zotero-annotation-summary?color=9cf)  
-[![License](https://img.shields.io/github/license/OneOneLiu/zotero-annotation-summary)](https://github.com/OneOneLiu/zotero-annotation-summary/blob/master/LICENSE)  
-![Downloads (Latest Release)](https://img.shields.io/github/downloads/OneOneLiu/zotero-annotation-summary/latest/total?color=yellow)
+[![zotero target version](https://img.shields.io/badge/Zotero-7-green?style=flat-square&logo=zotero&logoColor=CC2936)](https://www.zotero.org)
+[![Using Zotero Plugin Template](https://img.shields.io/badge/Using-Zotero%20Plugin%20Template-blue?style=flat-round&logo=github)](https://github.com/windingwind/zotero-plugin-template)
+[![Latest release](https://img.shields.io/github/v/release/OneOneLiu/zotero-annotation-summary)](https://github.com/OneOneLiu/zotero-annotation-summary/releases)
+![Release Date](https://img.shields.io/github/release-date/OneOneLiu/zotero-annotation-summary?color=9cf)
+[![License](https://img.shields.io/github/license/OneOneLiu/zotero-annotation-summary)](https://github.com/OneOneLiu/zotero-annotation-summary/blob/master/LICENSE)
+![Downloads latest release](https://img.shields.io/github/downloads/OneOneLiu/zotero-annotation-summary/latest/total?color=yellow)
 
 > [简体中文](./README.md) | [English](./README_en.md)
 
 ## Introduction
 
-**Zotero Annotation Summary Viewer** is a plugin that loads and displays all annotations (highlights) from your Zotero library in a single summary page. It supports keyword searches, color/tag filtering, hover previews of source information and timestamps, direct hyperlink jumps to the original annotation in Zotero, and simple data statistics.
-
----
+A Zotero plugin that extracts and displays all highlights and notes from your library in a unified summary page. You can load and view every annotation, search by keyword, filter by color or tag (including NOT logic), hover to preview source and timestamp, click to jump directly to the corresponding item in Zotero, and view simple statistics.
 
 ## How to Use
 
-1. **Install the Plugin**  
-   - Download the latest `annotation-summary.xpi` from the [Releases page](https://github.com/OneOneLiu/zotero-annotation-summary/releases) and install it into Zotero 7.
+1. Download and install `annotation-summary.xpi` from the [Release page](https://github.com/OneOneLiu/zotero-annotation-summary/releases) into Zotero 7.
+2. In Zotero’s top menu bar, go to **Tools → Open Annotation Summary**.
 
-2. **Open the Annotation Summary**  
-   - In Zotero’s top menu bar, go to **Tools → Open Annotation Summary**.
-
-   <img src="./doc/images/how__to_use.png" alt="How to Use" width="500" />
-
----
+<img src="./doc/images/how__to_use.png" alt="how_to_use" width="500">
 
 ## Features
 
-### 1. Load and Display Annotations
+### 1. Load and Display All Annotations
 
-- The plugin automatically loads every annotation (highlights) from your Zotero library and displays them in a summary page.
+— Load all highlight annotations (and their comments) from your Zotero library into a summary page that dynamically updates as you filter or search.
 
-  <img src="./doc/images/introduction.png" alt="Annotation Summary Introduction" width="800" />
-
----
+<img src="./doc/images/introduction.png" alt="introduction" width="800">
 
 ### 2. Search & Filter
 
-- **Keyword Search**  
-  - Search annotations by text or by comment keywords.
-  - Supports Boolean logic operators: **AND**, **OR**, **NOT**.
+- **Text/Comment Search**  
+  Search by highlight text or comment keywords. Supports AND, OR, and NOT logic.
 
-  <img src="./doc/images/indexing.gif" alt="Keyword Search" width="800" />
+  <img src="./doc/images/indexing.gif" alt="indexing" width="800">
 
 - **Color & Tag Filtering**  
-  - Filter annotations by highlight color or by tags.
+  Filter annotations by highlight color or tag. Supports NOT logic: selecting NOT plus a color or tag excludes any annotation with that color/tag; excluded items show a red strikethrough bar beneath the color swatch or tag.
 
-  <img src="./doc/images/filtering.gif" alt="Color and Tag Filtering" width="800" />
+  <img src="./doc/images/filtering.gif" alt="filtering" width="800">  
+  <img src="./doc/images/Not.png" alt="not" width="800">
 
----
+- **Date Range Filtering**  
+  Choose a preset date range, from Recent 1 Day” up to “Recent 1 Year,” or show all annotations.
 
-### 3. Hover Preview: Source & Timestamp
+  <img src="./doc/images/daterange.png" alt="daterange" width="800">
 
-- When you hover over an annotation entry, a tooltip appears in the top-right corner displaying the source item’s title (`sourceTitle`) and the date the annotation was added (`dateAdded`).
+### 3. Hover to Preview Source & Timestamp
 
-  <img src="./doc/images/source.png" alt="Hover Preview of Source and Timestamp" width="800" />
+Hover over any annotation to see a small overlay in the top-right corner showing the source title (`sourceTitle`) and the time it was added (`dateAdded`).
 
----
+<img src="./doc/images/source.png" alt="source" width="800">
 
-### 4. Click to Jump to Original Annotation
+### 4. Click to Jump to Zotero Item
 
-- Clicking on any annotation entry will open the corresponding source item in Zotero and scroll directly to that annotation.
+Click any annotation entry to open its corresponding item in Zotero at the exact highlighted location.
 
-  <img src="./doc/images/hyperlink.gif" alt="Click to Jump to Annotation" width="800" />
+<img src="./doc/images/hyperlink.gif" alt="hyperlink" width="800">
 
----
+### 5. Display Count & Statistics
 
-### 5. Data Statistics
+- **Display Count**  
+  At the bottom of the annotation list, a line shows how many annotations are currently displayed.  
 
-- At the bottom of the page, color and tag histograms display basic statistics about your annotations:
-  - How many annotations use each color.
-  - How many annotations belong to each tag.
+  <img src="./doc/images/displaycount.png" alt="displaycount" width="800">
 
-  <img src="./doc/images/statistics.png" alt="Annotation Data Statistics" width="800" />
+> [!note]
+> When there are many annotations, the opening of the summary page or changing filters (color, tag, date range, logic) may cause a slight delay. On my machine, over 1,000 annotations introduces a small lag; over 2,000 annotations produces noticeable lag. Once filters have been applied, scrolling and reading remain smooth.
 
----
+- **Color & Tag Histograms**  
+  At the bottom of the page, two histograms show the distribution of annotation counts by color and by tag, updating dynamically as you filter.
+
+  <img src="./doc/images/statistics.png" alt="statistics" width="800">
 
 ### 6. Dynamic UI Rendering
 
-- The annotation list, available tags, color palette, and data statistics all update in real time as you apply new filters or modify the search query. This ensures you always see only the relevant subset of annotations.
-
----
+Everything updates in real time based on the current filter state:  
+- The list of annotations  
+- Available tag and color options (including excluded items marked with a red line)  
+- Display count text  
+- Histograms
 
 ## License
 
-This project is licensed under the **[AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html)**. See the [LICENSE](https://github.com/OneOneLiu/zotero-annotation-summary/blob/master/LICENSE) file for details.
+This project is licensed under **[AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html)**. See the [LICENSE](https://github.com/OneOneLiu/zotero-annotation-summary/blob/master/LICENSE) file for details.
 
 ---
 
 ## Acknowledgments
 
-- Built using the **[Zotero Plugin Template](https://github.com/windingwind/zotero-plugin-template)**
-- Inspired by and referencing the source code of **[Chartero](https://github.com/volatile-static/Chartero)**
+- Built on the **[Zotero Plugin Template](https://github.com/windingwind/zotero-plugin-template)**  
+- Inspired by and referencing [Chartero](https://github.com/volatile-static/Chartero) source code  
