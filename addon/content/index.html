@@ -660,7 +660,7 @@
         <input type="number" id="items-per-row" min="1" max="3" value="1" />
       </div>
 
-      <!-- “每页显示数量” 下拉菜单 -->
+      <!-- "每页显示数量" 下拉菜单 -->
       <div class="control-group">
         <label for="items-per-page" id="label-items-per-page"></label>
         <select id="items-per-page">
@@ -842,24 +842,10 @@
     // —— 全局 annotations 数组，初始为空，后续由"Zotero 加载"或"文件输入"填充 —— 
     let annotations = [];
 
-    // —— 将 tags 字符串拆分成数组，并去掉 "#" 前缀 —— 
-    function preprocessTags(arr) {
-      arr.forEach((a) => {
-        a._tagsArray = (a.tags || "")
-          .split(",")
-          .map((t) => t.trim().replace(/^#/, ""))
-          .filter((t) => t !== "");
-      });
-    }
-
     // —— 三份"中间结果"数组 —— 
     let textResults = [];
     let bottomResults = [];
     let combinedResults = [];
-
-    // —— 底部可选 tags/colors 集合 —— 
-    let baseBottomTags = new Set();
-    let baseBottomColors = new Set();
 
     // —— 分页相关变量 —— 
     let currentPage = 1;
@@ -920,7 +906,6 @@
                   console.warn("index.html: 解析得到的数据不是数组，跳过");
                 } else {
                   annotations = data;
-                  preprocessTags(annotations);
                   console.log("index.html: 已从临时文件加载注释，共", annotations.length, "条");
                   filterAnnotations();
                   return; // 成功加载后就不执行后续的 filterAnnotations()
@@ -1001,7 +986,7 @@
       let colorsSource = textResults;
       if (hasTagFilters) {
         colorsSource = textResults.filter((a) => {
-          const arr = a._tagsArray;
+          const arr = (a.tags || "").split(',').map(t => t.trim()).filter(Boolean);
           if (tagOpSelect.value === "NOT") {
             if (selectedTags.has("__NO_TAG__")) {
               return arr.length > 0;
@@ -1035,7 +1020,7 @@
         // 2. 判断标签
         let matchTag = true;
         if (hasTagFilters) {
-          const arr = a._tagsArray || [];
+          const arr = (a.tags || "").split(',').map(t => t.trim()).filter(Boolean);
           if (tagOpSelect.value === "NOT") {
             if (selectedTags.has("__NO_TAG__")) {
               matchTag = arr.length > 0;
@@ -1090,25 +1075,6 @@
           bottomResults.includes(a)
         );
       }
-
-      // —— ⑥ 更新底部 Tag/Color 可选项 —— 
-      baseBottomTags.clear();
-      let sourceForTagOptions = annotations;
-      if (textActive || hasColorFilters) {
-        sourceForTagOptions = tagsSource;
-      }
-      sourceForTagOptions.forEach((a) => {
-        (a._tagsArray || []).forEach((t) => baseBottomTags.add(t));
-      });
-
-      baseBottomColors.clear();
-      let sourceForColorOptions = annotations;
-      if (textActive || hasTagFilters) {
-        sourceForColorOptions = colorsSource;
-      }
-      sourceForColorOptions.forEach((a) => {
-        if (a.color) baseBottomColors.add(a.color);
-      });
 
       // 每次过滤完成后，总是重置到第一页
       currentPage = 1;
@@ -1179,13 +1145,13 @@
           wrapper.appendChild(commentDiv);
         }
 
-        if (a._tagsArray && a._tagsArray.length > 0) {
+        if (a.tags && a.tags.length > 0) {
           const tagsContainer = document.createElement("div");
           tagsContainer.className = "annotation-tags";
-          a._tagsArray.forEach((tag) => {
+          (a.tags || "").split(',').map(t => t.trim()).filter(Boolean).forEach(t => {
             const tagElement = document.createElement("span");
             tagElement.className = "annotation-tag";
-            tagElement.textContent = tag;
+            tagElement.textContent = t;
             tagsContainer.appendChild(tagElement);
           });
           wrapper.appendChild(tagsContainer);
@@ -1237,6 +1203,14 @@
     function renderBottomOptions() {
       tagsListContainer.innerHTML = "";
       const noTagValue = "__NO_TAG__";
+      const tagsSet = new Set();
+      const colorsSet = new Set();
+      combinedResults.forEach(a => {
+        (a.tags || "").split(',').map(t => t.trim()).filter(Boolean).forEach(t => tagsSet.add(t));
+        if (a.color) colorsSet.add(a.color);
+      });
+
+      // 渲染"无标签"按钮
       const noTagEl = document.createElement("span");
       noTagEl.className = "tag-item";
       noTagEl.textContent = getString('noTag');
@@ -1252,9 +1226,8 @@
       });
       tagsListContainer.appendChild(noTagEl);
 
-      const sortedTags = Array.from(baseBottomTags).sort((a, b) =>
-        a.localeCompare(b, "zh-CN")
-      );
+      // 渲染所有标签
+      const sortedTags = Array.from(tagsSet).sort((a, b) => a.localeCompare(b, "zh-CN"));
       sortedTags.forEach((tag) => {
         const tagEl = document.createElement("span");
         tagEl.className = "tag-item";
@@ -1272,8 +1245,9 @@
         tagsListContainer.appendChild(tagEl);
       });
 
+      // 渲染所有颜色
       colorsListContainer.innerHTML = "";
-      const sortedColors = Array.from(baseBottomColors).sort();
+      const sortedColors = Array.from(colorsSet).sort();
       sortedColors.forEach((col) => {
         const colEl = document.createElement("div");
         colEl.className = "color-item";
@@ -1358,7 +1332,7 @@
       const tagCounts = {};
       combinedResults.forEach(a => {
         if (a.color) colorCounts[a.color] = (colorCounts[a.color] || 0) + 1;
-        (a._tagsArray || []).forEach(t => {
+        (a.tags || "").split(',').map(t => t.trim()).filter(Boolean).forEach(t => {
           tagCounts[t] = (tagCounts[t] || 0) + 1;
         });
       });
