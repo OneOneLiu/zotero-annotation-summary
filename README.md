@@ -67,10 +67,6 @@
 
 <img src="./doc/images/displaycount.png" alt="displaycount" width="800">
 
-> [!note]
-> - 当标注条目过多时，第一次打开时，或者更改筛选条件，比如更改选中的颜色，tag，时间，与或非逻辑都会导致轻微卡顿，逻辑检索结束后的显示与阅读不会卡顿。我的电脑上实测标注条目大于1000条时才会出现轻微卡顿，超过2000条时出现明显卡顿。
-> - 如出现卡顿，等待逻辑检索完成即可，不要多次点击。
-
 - 页面下方显示color和tag的直方图数据统计
 
 <img src="./doc/images/statistics.png" alt="statistics" width="800">

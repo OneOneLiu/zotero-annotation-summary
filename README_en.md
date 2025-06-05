@@ -68,9 +68,6 @@ Double click any annotation entry to open its corresponding item in Zotero at th
 
   <img src="./doc/images/displaycount.png" alt="displaycount" width="800">
 
-> [!note]
-> When there are many annotations, the opening of the summary page or changing filters (color, tag, date range, logic) may cause a slight delay. On my machine, over 1,000 annotations introduces a small lag; over 2,000 annotations produces noticeable lag. Once filters have been applied, scrolling and reading remain smooth.
-
 - **Color & Tag Histograms**  
   At the bottom of the page, two histograms show the distribution of annotation counts by color and by tag, updating dynamically as you filter.
 
