@@ -190,7 +190,7 @@
 
     /* ---------- 单个注释块 ---------- */
     .annotation-item {
-      cursor: pointer;
+      cursor: default;
       border-radius: var(--border-radius);
       padding: 20px;
       box-shadow: var(--box-shadow);
@@ -201,9 +201,8 @@
       background-color: white;
       display: flex;
       flex-direction: column;
-      min-height: 230px;
-      max-height: 250px;
-      overflow: auto;
+      height: auto;       /* 让高度由内容自然撑开 */
+      align-self: start;      /* 阻止它在 grid 容器里垂直拉伸 */
       background: linear-gradient(to bottom, #ffffff, #fcfdff);
     }
 
@@ -261,16 +260,20 @@
       font-family: serif;
     }
 
+    /* 渲染“标签”区域 */
     .annotation-tags {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       margin-top: 15px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--medium-gray);
     }
 
     .annotation-tag {
       font-size: 0.85rem;
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
       padding: 6px 12px;
       border-radius: 20px;
       background-color: #e1f0fa;
@@ -278,6 +281,7 @@
       font-weight: 600;
       transition: var(--transition);
       border: 1px solid #d0e3f1;
+      position: relative;
     }
 
     .annotation-tag:hover {
@@ -285,8 +289,48 @@
       background-color: #d1e8ff;
     }
 
+    /* “删除 ×” 就是 annotation-tag 下的子 <span> */
+    .annotation-tag > span {
+      margin-left: 6px;
+      font-size: 1rem;
+      color: #c0392b;
+    }
+
+    /* 添加标签的输入框 + 按钮 */
+    .add-tag-wrapper {
+      display: flex;
+      flex-wrap: wrap;
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    .add-tag-wrapper input[type="text"] {
+      flex: 1;
+      min-width: 100px;
+      padding: 4px 8px;
+      border: 1px solid var(--medium-gray);
+      border-radius: 4px;
+      font-size: 0.9rem;
+      margin-right: 6px;
+    }
+
+    .add-tag-wrapper button {
+      padding: 4px 12px;
+      border: none;
+      background-color: var(--secondary-color);
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: var(--transition);
+    }
+
+    .add-tag-wrapper button:hover {
+      background-color: #2980b9;
+    }
+
     .annotation-uri {
-      margin-top: 15px;
+      margin-top: 12px;
       font-size: 0.85rem;
       color: var(--dark-gray);
       overflow: hidden;
@@ -499,6 +543,7 @@
 
     .histogram-row .label-section {
       display: flex;
+      flex-direction: row;
       align-items: center;
       width: 180px;
       padding-right: 15px;
@@ -601,6 +646,18 @@
         width: 140px;
       }
     }
+
+    /* ===================================================
+       “隐藏添加标签输入区”和“隐藏删除 × 按钮” 的 CSS，保留其余功能
+       =================================================== */
+    /* 隐藏“添加标签”那一行输入框 + 按钮 */
+    .add-tag-wrapper {
+      display: none !important;
+    }
+    /* 隐藏标签后面的 “×” 删除按钮 */
+    .annotation-tag > span {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
@@ -621,19 +678,9 @@
         />
       </div>
       <div class="control-group">
-        <label for="text-op" id="label-text-op"></label>
-        <select id="text-op">
-          <option value="AND">AND</option>
-          <option value="OR">OR</option>
-          <option value="NOT">NOT</option>
-        </select>
-      </div>
-      <div class="control-group">
         <label for="items-per-row" id="label-items-per-row"></label>
         <input type="number" id="items-per-row" min="1" max="3" value="1" />
       </div>
-
-      <!-- 仅保留"日期范围"下拉菜单 -->
       <div class="control-group">
         <label for="date-preset" id="label-date-preset"></label>
         <select id="date-preset">
@@ -643,15 +690,6 @@
           <option value="7" id="date-preset-7"></option>
           <option value="30" id="date-preset-30"></option>
           <option value="365" id="date-preset-365"></option>
-        </select>
-      </div>
-
-      <div class="control-group">
-        <label for="combine-op" id="label-combine-op"></label>
-        <select id="combine-op">
-          <option value="AND">AND</option>
-          <option value="OR">OR</option>
-          <option value="NOT">NOT</option>
         </select>
       </div>
     </div>
@@ -774,9 +812,7 @@
       document.getElementById('text-search').placeholder = getString('searchPlaceholderText');
       document.getElementById('label-comment-search').textContent = getString('searchLabelComment');
       document.getElementById('comment-search').placeholder = getString('searchPlaceholderComment');
-      document.getElementById('label-text-op').textContent = getString('logicLabelText');
       document.getElementById('label-items-per-row').textContent = getString('itemsPerRowLabel');
-      document.getElementById('label-combine-op').textContent = getString('combineLogicLabel');
       document.getElementById('label-color-filter').textContent = getString('colorFilterLabel');
       document.getElementById('label-color-op').textContent = getString('colorLogicLabel');
       document.getElementById('label-tag-filter').textContent = getString('tagFilterLabel');
@@ -795,7 +831,7 @@
     }
     document.addEventListener('DOMContentLoaded', fillI18nText);
 
-    // —— 全局 annotations 数组，初始为空，后续由"Zotero 加载"或"文件输入"填充 —— 
+    // —— 全局 annotations 数组（存放从临时 JSON 文件加载的注释数据） —— 
     let annotations = [];
 
     // —— 将 tags 字符串拆分成数组，并去掉 "#" 前缀 —— 
@@ -820,9 +856,7 @@
     // —— 页面元素引用 —— 
     const textInput = document.getElementById("text-search");
     const commentInput = document.getElementById("comment-search");
-    const textOpSelect = document.getElementById("text-op");
     const itemsPerRowInput = document.getElementById("items-per-row");
-    const combineOpSelect = document.getElementById("combine-op");
     const tagOpSelect = document.getElementById("tag-op");
     const colorOpSelect = document.getElementById("color-op");
     const datePresetSelect = document.getElementById("date-preset");
@@ -836,16 +870,15 @@
     let selectedTags = new Set();
     let selectedColors = new Set();
 
-    // —— 在页面加载后，优先检查 URL 是否包含 file 参数 —— 
+    // —— 初始化：优先检查 URL 是否包含 file 参数 —— 
     (async function initFromZoteroFile() {
       try {
         const params = new URLSearchParams(window.location.search);
         const encodedFile = params.get("file");
         if (encodedFile) {
-          // 如果存在 file 参数，就尝试通过 Zotero API 读取
           console.log("index.html: 找到 file 参数，准备从临时文件读取…", encodedFile);
 
-          // 先拿到父窗口的 Zotero 对象
+          // 拿到父窗口的 Zotero 对象
           const parentZotero = window.parent.Zotero;
           if (!parentZotero) {
             console.warn("index.html: window.parent.Zotero 未定义，无法通过 Zotero API 读取");
@@ -891,108 +924,88 @@
 
     // —— 主要过滤函数 —— 
     function filterAnnotations() {
-      // —— 根据"日期预设"计算 dateStart/dateEnd —— 
+      // —— 1. 先计算日期范围 —— 
       const presetVal = datePresetSelect.value;
       let dateStart = null;
-      let dateEnd = null;
+      let dateEnd   = null;
       if (presetVal !== "all") {
         const days = parseInt(presetVal, 10);
         const today = new Date();
         const startDate = new Date(today);
         startDate.setDate(today.getDate() - days);
-        // 对比时，仅用 YYYY-MM-DD 即可
         dateStart = new Date(startDate.toISOString().slice(0, 10));
-        const endDate = new Date(today.toISOString().slice(0, 10));
-        endDate.setHours(23, 59, 59, 999);
-        dateEnd = endDate;
+        const tmpEnd = new Date(today.toISOString().slice(0, 10));
+        tmpEnd.setDate(tmpEnd.getDate() + 1);
+        tmpEnd.setHours(23, 59, 59, 999);
+        dateEnd = tmpEnd;
       }
 
-      const textQuery = textInput.value.trim().toLowerCase();
+      // —— 2. 读取搜索框/底部筛选相关值 —— 
+      const textQuery    = textInput.value.trim().toLowerCase();
       const commentQuery = commentInput.value.trim().toLowerCase();
-      const textOp = textOpSelect.value;
-      const combineOp = combineOpSelect.value;
-      const tagOp = tagOpSelect.value;
-      const colorOp = colorOpSelect.value;
-
-      const hasTextQuery = textQuery !== "";
+      const hasTextQuery    = textQuery !== "";
       const hasCommentQuery = commentQuery !== "";
-      const hasTagFilters = selectedTags.size > 0;
+      const hasDateFilter   = dateStart !== null && dateEnd !== null;
+      const hasTagFilters   = selectedTags.size > 0;
       const hasColorFilters = selectedColors.size > 0;
-      const hasDateFilter = dateStart !== null && dateEnd !== null;
+      const tagOp           = tagOpSelect.value;
+      const colorOp         = colorOpSelect.value;
 
-      // —— ① 根据"日期预设 + 标注文字/评论"做第一轮筛选，得到 textResults —— 
-      textResults = annotations.filter((a) => {
-        // 先判断日期范围是否通过
+      // —— 3. 第一轮：先根据“日期 + 文本/评论”同时过滤，得到 textResults —— 
+      textResults = annotations.filter(a => {
+        // a.dateAdded 可能为空，此时视为不满足日期
         if (hasDateFilter) {
           if (!a.dateAdded) return false;
           const d = new Date(a.dateAdded);
           if (d < dateStart || d > dateEnd) return false;
         }
-        // 再判断文字/评论是否满足
+        // 再分别判断文本和评论匹配
         const txt = (a.text || "").toLowerCase();
         const cmt = (a.comment || "").toLowerCase();
-        const matchText = hasTextQuery ? txt.includes(textQuery) : false;
-        const matchComment = hasCommentQuery ? cmt.includes(commentQuery) : false;
-
-        if (!hasTextQuery && !hasCommentQuery) return true;
-        if (hasTextQuery && hasCommentQuery) {
-          if (textOp === "AND") return matchText && matchComment;
-          if (textOp === "OR") return matchText || matchComment;
-          if (textOp === "NOT") return matchText && !matchComment;
-        } else if (hasTextQuery) {
-          if (textOp === "NOT") return !matchText;
-          return matchText;
-        } else { // 只有评论
-          if (textOp === "NOT") return !matchComment;
-          return matchComment;
-        }
-        return false;
+        const matchText    = hasTextQuery    ? txt.includes(textQuery)    : true;
+        const matchComment = hasCommentQuery ? cmt.includes(commentQuery) : true;
+        return matchText && matchComment;
       });
 
-      // —— ② 计算 Tag 可选来源：如果有 Color 筛选，则从 textResults 中再筛选出颜色匹配项；否则直接用 textResults —— 
-      let tagsSource = textResults;
+      // —— 4. 计算 tagsSource & colorsSource，用于底部选项更新 —— 
+      // tagsSource: 如果有“颜色筛选”，则在 textResults 里再筛一次颜色；否则直接用 textResults
+      let tagsSource = textResults.slice();
       if (hasColorFilters) {
-        tagsSource = textResults.filter((a) =>
-          selectedColors.has(a.color)
-        );
+        tagsSource = textResults.filter(a => selectedColors.has(a.color));
       }
-
-      // —— ③ 计算 Color 可选来源：如果有 Tag 筛选，则从 textResults 中再筛选出标签匹配项；否则直接用 textResults —— 
-      let colorsSource = textResults;
+      // colorsSource: 如果有“标签筛选”，则在 textResults 里再筛一次标签；否则直接用 textResults
+      let colorsSource = textResults.slice();
       if (hasTagFilters) {
-        colorsSource = textResults.filter((a) => {
-          const arr = a._tagsArray;
+        colorsSource = textResults.filter(a => {
+          const arr = a._tagsArray || [];
           if (tagOp === "NOT") {
             if (selectedTags.has("__NO_TAG__")) {
               return arr.length > 0;
-            } else {
-              return arr.every((t) => !selectedTags.has(t));
             }
+            return arr.every(t => !selectedTags.has(t));
           } else {
             if (selectedTags.has("__NO_TAG__")) {
               return arr.length === 0;
             }
-            if (arr.length === 0) {
-              return false;
-            }
+            if (arr.length === 0) return false;
             if (tagOp === "AND") {
-              return Array.from(selectedTags).every((t) => arr.includes(t));
+              return Array.from(selectedTags).every(t => arr.includes(t));
             }
             // OR
-            return Array.from(selectedTags).some((t) => arr.includes(t));
+            return Array.from(selectedTags).some(t => arr.includes(t));
           }
         });
       }
 
-      // —— ④ 将"标签 + 颜色 + 日期"过滤（基于全量 annotations）得到 bottomResults —— 
-      bottomResults = annotations.filter((a) => {
-        // 1. 先判断日期
+      // —— 5. 计算 bottomResults：基于【全量 annotations】且同时考虑“日期 + 标签 + 颜色”过滤 —— 
+      bottomResults = annotations.filter(a => {
+        // 5.1 日期
         if (hasDateFilter) {
           if (!a.dateAdded) return false;
           const d = new Date(a.dateAdded);
           if (d < dateStart || d > dateEnd) return false;
         }
-        // 2. 判断标签
+        // 5.2 标签
         let matchTag = true;
         if (hasTagFilters) {
           const arr = a._tagsArray || [];
@@ -1000,7 +1013,7 @@
             if (selectedTags.has("__NO_TAG__")) {
               matchTag = arr.length > 0;
             } else {
-              matchTag = arr.every((t) => !selectedTags.has(t));
+              matchTag = arr.every(t => !selectedTags.has(t));
             }
           } else {
             if (selectedTags.has("__NO_TAG__")) {
@@ -1008,81 +1021,99 @@
             } else if (arr.length === 0) {
               matchTag = false;
             } else if (tagOp === "AND") {
-              matchTag = Array.from(selectedTags).every((t) => arr.includes(t));
+              matchTag = Array.from(selectedTags).every(t => arr.includes(t));
             } else { // OR
-              matchTag = Array.from(selectedTags).some((t) => arr.includes(t));
+              matchTag = Array.from(selectedTags).some(t => arr.includes(t));
             }
           }
         }
-        // 3. 判断颜色
+        if (!matchTag) return false;
+
+        // 5.3 颜色
         let matchColor = true;
         if (hasColorFilters) {
           if (colorOp === "NOT") {
             matchColor = !selectedColors.has(a.color);
           } else if (colorOp === "AND") {
-            matchColor = selectedColors.size === 1 && selectedColors.has(a.color);
+            // AND 语义：选择了多个颜色时，目前只在 selectedColors.size===1 时才匹配单一颜色
+            matchColor = (selectedColors.size === 1 && selectedColors.has(a.color));
           } else { // OR
             matchColor = selectedColors.has(a.color);
           }
         }
-        return matchTag && matchColor;
+        if (!matchColor) return false;
+
+        return true;
       });
 
-      // —— ⑤ 合并"文字过滤结果"与"底部过滤结果"—— 
-      const textActive = hasTextQuery || hasCommentQuery;
-      const bottomActive = hasTagFilters || hasColorFilters;
+      // —— 6. 合并“文本/评论过滤结果” 与 “底部标签/颜色过滤结果” —— 
+      const textActive   = hasTextQuery || hasCommentQuery || hasDateFilter;
+      const bottomActive = hasTagFilters || hasColorFilters || hasDateFilter;
       if (!textActive && !bottomActive) {
+        // 没有任何过滤：直接显示全量
         combinedResults = annotations.slice();
-        if (hasDateFilter) {
-          combinedResults = annotations.filter((a) => {
-            if (!a.dateAdded) return false;
-            const d = new Date(a.dateAdded);
-            return d >= dateStart && d <= dateEnd;
-          });
-        }
       } else if (textActive && !bottomActive) {
+        // 只有文本/评论（或日期）生效
         combinedResults = textResults.slice();
       } else if (!textActive && bottomActive) {
+        // 只有底部标签/颜色（或日期）生效
         combinedResults = bottomResults.slice();
       } else {
-        if (combineOp === "AND") {
-          combinedResults = textResults.filter((a) =>
-            bottomResults.includes(a)
-          );
-        } else if (combineOp === "OR") {
-          combinedResults = Array.from(
-            new Set([...textResults, ...bottomResults])
-          );
-        } else if (combineOp === "NOT") {
-          combinedResults = textResults.filter((a) => !bottomResults.includes(a));
-        }
+        // 都生效时取交集
+        // 注意：因为 textResults 已经包含了日期、文本、评论筛选，
+        // bottomResults 包含了日期、标签、颜色筛选，此处直接做交集即可：
+        combinedResults = textResults.filter(a => bottomResults.includes(a));
       }
 
-      // —— ⑥ 更新底部 Tag/Color 可选项 —— 
+      // —— 7. 更新底部可选标签 & 颜色 —— 
       baseBottomTags.clear();
-      let sourceForTagOptions = annotations;
-      if (textActive || hasColorFilters) {
-        sourceForTagOptions = tagsSource;
+      baseBottomColors.clear();
+
+      // 用 dateFiltered 只按日期筛选一次，以便在没有“文本/颜色/标签”时，也能更新底部选项
+      let dateFiltered = annotations;
+      if (hasDateFilter) {
+        dateFiltered = annotations.filter(a => {
+          if (!a.dateAdded) return false;
+          const d = new Date(a.dateAdded);
+          return d >= dateStart && d <= dateEnd;
+        });
       }
-      sourceForTagOptions.forEach((a) => {
-        (a._tagsArray || []).forEach((t) => baseBottomTags.add(t));
+
+      // 7.1 更新“标签选项”来源：
+      // 如果有“文本”或“颜色”筛选，则用 tagsSource；否则若只有“标签”或“日期”筛选，则用 dateFiltered；否则用全量
+      let sourceForTagOptions;
+      if ((hasTextQuery || hasCommentQuery) || hasColorFilters) {
+        sourceForTagOptions = tagsSource;
+      } else if (hasTagFilters || hasDateFilter) {
+        sourceForTagOptions = dateFiltered;
+      } else {
+        sourceForTagOptions = annotations;
+      }
+      sourceForTagOptions.forEach(a => {
+        (a._tagsArray || []).forEach(t => baseBottomTags.add(t));
       });
 
-      baseBottomColors.clear();
-      let sourceForColorOptions = annotations;
-      if (textActive || hasTagFilters) {
+      // 7.2 更新“颜色选项”来源：
+      // 如果有“文本”或“标签”筛选，则用 colorsSource；否则若只有“颜色”或“日期”筛选，则用 dateFiltered；否则用全量
+      let sourceForColorOptions;
+      if ((hasTextQuery || hasCommentQuery) || hasTagFilters) {
         sourceForColorOptions = colorsSource;
+      } else if (hasColorFilters || hasDateFilter) {
+        sourceForColorOptions = dateFiltered;
+      } else {
+        sourceForColorOptions = annotations;
       }
-      sourceForColorOptions.forEach((a) => {
+      sourceForColorOptions.forEach(a => {
         if (a.color) baseBottomColors.add(a.color);
       });
 
+      // —— 8. 最后调用渲染函数 —— 
       renderBottomOptions();
       renderAnnotations();
       renderStats();
     }
 
-    // —— 渲染注释条目 —— 
+    // —— 渲染注释条目（包括可增删标签的 UI） —— 
     function renderAnnotations() {
       annotationContainer.innerHTML = "";
       const perRow = Math.min(3, parseInt(itemsPerRowInput.value, 10) || 1);
@@ -1098,14 +1129,19 @@
         const wrapper = document.createElement("div");
         wrapper.className = "annotation-item";
 
+        // 把 itemID 存进 DOM，后续修改标签要用
+        wrapper.dataset.itemId = a.itemID;
+
+        // —— 点击注释跳转到对应 PDF 标注位置 —— 
         if (a.uri) {
-          wrapper.style.cursor = "pointer";
-          wrapper.addEventListener("click", (e) => {
+          wrapper.addEventListener("dblclick", (e) => {
+            if (e.target.closest(".annotation-tags")) return;
             e.preventDefault();
             window.location.assign(a.uri);
           });
         }
 
+        // —— 渲染 Header（只包括颜色） —— 
         const header = document.createElement("div");
         header.className = "annotation-header";
         const colorIndicator = document.createElement("div");
@@ -1114,11 +1150,13 @@
         header.appendChild(colorIndicator);
         wrapper.appendChild(header);
 
+        // —— 渲染 注释文本 —— 
         const textDiv = document.createElement("div");
         textDiv.className = "annotation-text";
         textDiv.textContent = a.text || "";
         wrapper.appendChild(textDiv);
 
+        // —— 渲染 注释评论 —— 
         if (a.comment) {
           const commentDiv = document.createElement("div");
           commentDiv.className = "annotation-comment";
@@ -1127,18 +1165,64 @@
           wrapper.appendChild(commentDiv);
         }
 
-        if (a._tagsArray && a._tagsArray.length > 0) {
-          const tagsContainer = document.createElement("div");
-          tagsContainer.className = "annotation-tags";
-          a._tagsArray.forEach((tag) => {
-            const tagElement = document.createElement("span");
-            tagElement.className = "annotation-tag";
-            tagElement.textContent = tag;
-            tagsContainer.appendChild(tagElement);
-          });
-          wrapper.appendChild(tagsContainer);
-        }
+        // —— 渲染 可增删标签区 —— 
+        const tagsContainer = document.createElement("div");
+        tagsContainer.className = "annotation-tags";
 
+        // 1. 先列出已有标签，每个标签后面加个"×"来删除
+        a._tagsArray.forEach((tag) => {
+          const tagEl = document.createElement("span");
+          tagEl.className = "annotation-tag";
+          tagEl.textContent = tag;
+
+          // 删除按钮（会被 CSS 隐藏掉）
+          const delBtn = document.createElement("span");
+          delBtn.textContent = " ×";
+          delBtn.style.cursor = "pointer";
+          delBtn.style.color = "#c0392b";
+          delBtn.addEventListener("click", (e) => {
+            e.stopPropagation(); // 防止触发整体点击跳转 PDF
+            removeTagFromAnnotation(a.itemID, tag, wrapper);
+          });
+          tagEl.appendChild(delBtn);
+          tagsContainer.appendChild(tagEl);
+        });
+
+        // 2. “添加标签”输入框 + 按钮（会被 CSS 隐藏掉）
+        const addWrapper = document.createElement("div");
+        addWrapper.className = "add-tag-wrapper";
+        const inputNew = document.createElement("input");
+        inputNew.type = "text";
+        inputNew.placeholder = "添加标签";
+        inputNew.style.flex = "1";
+        inputNew.style.padding = "4px 8px";
+        inputNew.style.border = "1px solid var(--medium-gray)";
+        inputNew.style.borderRadius = "4px";
+        inputNew.style.marginRight = "6px";
+
+        const addBtn = document.createElement("button");
+        addBtn.textContent = "添加";
+        addBtn.style.padding = "4px 12px";
+        addBtn.style.border = "none";
+        addBtn.style.backgroundColor = "var(--secondary-color)";
+        addBtn.style.color = "white";
+        addBtn.style.borderRadius = "4px";
+        addBtn.addEventListener("click", (e) => {
+          e.stopPropagation(); // 防止触发整体点击跳转 PDF
+          const newTag = inputNew.value.trim().replace(/^#/, "");
+          if (newTag) {
+            addTagToAnnotation(a.itemID, newTag, wrapper);
+            inputNew.value = "";
+          }
+        });
+
+        addWrapper.appendChild(inputNew);
+        addWrapper.appendChild(addBtn);
+        tagsContainer.appendChild(addWrapper);
+
+        wrapper.appendChild(tagsContainer);
+
+        // —— 渲染 注释 URI —— 
         if (a.uri) {
           const uriElement = document.createElement("div");
           uriElement.className = "annotation-uri";
@@ -1146,6 +1230,7 @@
           wrapper.appendChild(uriElement);
         }
 
+        // —— 渲染 悬浮来源/时间 信息 —— 
         if (a.sourceTitle || a.dateAdded) {
           const infoDiv = document.createElement("div");
           infoDiv.className = "annotation-hover-info";
@@ -1159,13 +1244,14 @@
           infoDiv.textContent = infoText;
           wrapper.appendChild(infoDiv);
         }
+
         annotationContainer.appendChild(wrapper);
       });
 
       // —— 更新底部显示的计数文字 —— 
       const count = combinedResults.length;
       if (LOCALE === "zh-CN") {
-        const template = getString("displayCountZH"); // "共显示 {count} 条 annotation"
+        const template = getString("displayCountZH"); // "共显示 {count} 条标注"
         displayCountDiv.textContent = template.replace("{count}", count);
       } else {
         const template = getString("displayCountEN"); // "Displaying {count} annotations"
@@ -1312,12 +1398,126 @@
       renderHistogram(tagHist, tagCounts, false);
     }
 
+    // —— 从 annotation 删除标签 —— 
+    async function removeTagFromAnnotation(itemID, tagToRemove, wrapper) {
+      try {
+        // 1. 先获取这个 item
+        const item = await window.parent.Zotero.Items.get(itemID);
+        if (!item) throw new Error("未找到 itemID=" + itemID);
+
+        // 2. 拿现有标签列表
+        const existingTagObjs = item.getTags(); // [{ tag: "...", type: ... }, …]
+        const existingTags = existingTagObjs.map(tObj => tObj.tag);
+
+        // 3. 过滤掉要删的 tag
+        const newTagNames = existingTags.filter(t => t !== tagToRemove);
+
+        // 4. 更新 Item 对象里的标签
+        item.setTags(newTagNames.map(t => ({ tag: t })));
+
+        // 5. 把改动写回 Zotero 数据库
+        await item.saveTx();
+
+        // 6. 通知 Zotero 主界面刷新
+        window.parent.Zotero.Notifier.trigger("item", "modify", itemID);
+
+        // —— 新增：同步更新本地 annotations 数组 —— 
+        const idx = annotations.findIndex(a => a.itemID === itemID);
+        if (idx >= 0) {
+          annotations[idx]._tagsArray = newTagNames.slice(); 
+        }
+
+        // 7. 重新渲染当前这一条注释的标签区（可删掉这段，如果你只想靠 filterAnnotations 统一渲染）
+        const tagsContainer = wrapper.querySelector(".annotation-tags");
+        tagsContainer.querySelectorAll(".annotation-tag").forEach(el => el.remove());
+        newTagNames.forEach(t => {
+          const tagEl = document.createElement("span");
+          tagEl.className = "annotation-tag";
+          tagEl.textContent = t;
+          const delBtn = document.createElement("span");
+          delBtn.textContent = " ×";
+          delBtn.style.cursor = "pointer";
+          delBtn.style.color = "#c0392b";
+          delBtn.addEventListener("click", e => {
+            e.stopPropagation();
+            removeTagFromAnnotation(itemID, t, wrapper);
+          });
+          tagEl.appendChild(delBtn);
+          const addWrapper = tagsContainer.querySelector(".add-tag-wrapper");
+          tagsContainer.insertBefore(tagEl, addWrapper);
+        });
+
+        // 8. 刷新底部统计和页面显示
+        filterAnnotations();
+      } catch (e) {
+        console.error("删除标签失败：", e);
+        alert("删除标签出错，请检查控制台错误信息。");
+      }
+    }
+
+    // —— 给 annotation 添加标签 —— 
+    async function addTagToAnnotation(itemID, newTag, wrapper) {
+      try {
+        // 1. 先获取这个 item
+        const item = await window.parent.Zotero.Items.get(itemID);
+        if (!item) throw new Error("未找到 itemID=" + itemID);
+
+        // 2. 拿现有标签列表
+        const existingTagObjs = item.getTags();
+        const existingTags = existingTagObjs.map(tObj => tObj.tag);
+
+        // 3. 如果还没包含，就把 newTag 加进去
+        if (!existingTags.includes(newTag)) {
+          existingTags.push(newTag);
+        }
+
+        // 4. 更新 Item 对象里的标签
+        item.setTags(existingTags.map(t => ({ tag: t })));
+
+        // 5. 把改动写回 Zotero 数据库
+        await item.saveTx();
+
+        // 6. 通知 Zotero 主界面刷新
+        window.parent.Zotero.Notifier.trigger("item", "modify", itemID);
+
+        // —— 新增：同步更新本地 annotations 数组 —— 
+        const idx = annotations.findIndex(a => a.itemID === itemID);
+        if (idx >= 0) {
+          annotations[idx]._tagsArray = existingTags.slice();
+        }
+
+        // 7. 重新渲染当前这一条注释的标签区（可删掉这段，如果你只想靠 filterAnnotations 统一渲染）
+        const tagsContainer = wrapper.querySelector(".annotation-tags");
+        tagsContainer.querySelectorAll(".annotation-tag").forEach(el => el.remove());
+        existingTags.forEach(t => {
+          const tagEl = document.createElement("span");
+          tagEl.className = "annotation-tag";
+          tagEl.textContent = t;
+          const delBtn = document.createElement("span");
+          delBtn.textContent = " ×";
+          delBtn.style.cursor = "pointer";
+          delBtn.style.color = "#c0392b";
+          delBtn.addEventListener("click", e => {
+            e.stopPropagation();
+            removeTagFromAnnotation(itemID, t, wrapper);
+          });
+          tagEl.appendChild(delBtn);
+          const addWrapper = tagsContainer.querySelector(".add-tag-wrapper");
+          tagsContainer.insertBefore(tagEl, addWrapper);
+        });
+
+        // 8. 刷新底部统计和页面显示
+        filterAnnotations();
+      } catch (e) {
+        console.error("添加标签失败：", e);
+        alert("添加标签出错，请检查控制台错误信息。");
+      }
+    }
+
     // —— 绑定顶部控件变化事件 —— 
     textInput.addEventListener("input", filterAnnotations);
     commentInput.addEventListener("input", filterAnnotations);
-    textOpSelect.addEventListener("change", filterAnnotations);
     itemsPerRowInput.addEventListener("change", renderAnnotations);
-    combineOpSelect.addEventListener("change", filterAnnotations);
     tagOpSelect.addEventListener("change", filterAnnotations);
     colorOpSelect.addEventListener("change", filterAnnotations);
     datePresetSelect.addEventListener("change", filterAnnotations);

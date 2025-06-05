@@ -1,17 +1,22 @@
+// annotationSummary.js
+// 假设此文件放在 your-addon/content/annotationSummary.js
+// 负责：向 Zotero "工具" 菜单添加"打开标注总结"菜单项，
+//       导出当前库中所有 annotation 到临时 JSON 文件，并返回 file:// URI。
+
 import { config } from "../package.json";
 import { createZToolkit } from "./utils/ztoolkit";
 import { getString } from "./utils/locale";
 
 const ztoolkit = createZToolkit();
 
-// 当 Zotero 主窗口加载完毕时，向"工具"菜单添加菜单项
+// —— 当 Zotero 主窗口加载完毕时，向 "工具" 菜单添加菜单项 —— 
 export function onMainWindowLoad(
   win: Window,
   extractAllAnnotations?: () => Promise<string | null>
 ) {
   const toolsMenu = win.document.getElementById("menu_ToolsPopup");
   if (toolsMenu) {
-    // "打开注释总结"菜单项（合并"提取"+"打开"）
+    // "打开注释总结" 菜单项（合并"导出"+"打开"）
     const existingOpenTabButton = win.document.getElementById(
       "zotero-tb-open-tab"
     );
@@ -35,7 +40,7 @@ export function onMainWindowLoad(
   }
 }
 
-// 点击"打开注释总结"后，直接打开标签页并加载 index.html，用传入的 fileUri
+// —— 点击"打开注释总结"后，直接打开标签页并加载 index.html，用传入的 fileUri —— 
 function openHelloZoteroTab(fileUri: string) {
   const Zotero_Tabs = Zotero.getMainWindow().Zotero_Tabs;
   const { container } = Zotero_Tabs.add({
@@ -44,13 +49,8 @@ function openHelloZoteroTab(fileUri: string) {
     data: {},
     select: true,
     onClose: () => {
-      // 关闭时清除临时文件 Pref
-      const rawKey = `${config.addonID}.lastTempFile`;
-      if (Zotero.Prefs.get(rawKey) !== null) {
-        (Zotero.Prefs as any).clearUserPref(rawKey);
-        Zotero.debug("【清理】已清除临时文件 Pref: " + rawKey);
-      }
-    },
+      Zotero.debug("【清理】关闭 Annotation Summary tab");
+    }
   });
 
   const encodedFileUri = encodeURIComponent(fileUri);
@@ -76,7 +76,7 @@ function openHelloZoteroTab(fileUri: string) {
   );
 }
 
-// 提取所有注释，结果写入临时文件，返回 file:// URI；发生错误时返回 null
+// —— 提取所有注释，结果写入临时文件，返回 file:// URI；发生错误时返回 null —— 
 export async function extractAllAnnotations(): Promise<string | null> {
   Zotero.debug("🟡 开始执行 extractAllAnnotations");
 
@@ -114,7 +114,7 @@ export async function extractAllAnnotations(): Promise<string | null> {
     return null;
   }
 
-  // 逐条收集所需字段
+  // 逐条收集所需字段，并且把 itemID 也写进去
   for (let i = 0; i < annotations.length; i++) {
     const item = annotations[i];
     try {
@@ -130,6 +130,9 @@ export async function extractAllAnnotations(): Promise<string | null> {
       const tags = (fullItem.tags || []).map((t: any) => t.tag).join(", ");
       const dateAdded = fullItem.dateAdded ?? "";
       const key = fullItem.key ?? "";
+
+      // —— 这里把数值型 itemID 也存起来 —— 
+      const itemID = item.itemID; 
 
       let title = "未知";
       const attachment = await Zotero.Items.get(item.parentID);
@@ -148,11 +151,12 @@ export async function extractAllAnnotations(): Promise<string | null> {
       }
 
       let uri = "";
-      if (fullItem.parentItem && pageIndex !== "") {
-        uri = `zotero://open-pdf/library/items/${fullItem.parentItem}?annotation=${key}`;
+      if (fullItem.parentItem) {
+        uri = `zotero://open/library/items/${fullItem.parentItem}?page=&annotation=${key}`;
       }
 
       result.push({
+        itemID,       // <—— 数值型 itemID
         text,
         comment,
         color,
