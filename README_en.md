@@ -54,9 +54,12 @@ Hover over any annotation to see a small overlay in the top-right corner showing
 
 ### 4. Click to Jump to Zotero Item
 
-Click any annotation entry to open its corresponding item in Zotero at the exact highlighted location.
+Double click any annotation entry to open its corresponding item in Zotero at the exact highlighted location.
 
 <img src="./doc/images/hyperlink.gif" alt="hyperlink" width="800">
+
+> [!note]
+> This click-to-junp feature can jump to the annotation page with PDF items, but can only jump to the item when with epub items because epub does not have pages. Other items have not been tested.
 
 ### 5. Display Count & Statistics
 
@@ -81,9 +84,13 @@ Everything updates in real time based on the current filter state:
 - Display count text  
 - Histograms
 
+### 7. Update
+- This plugin does not provide automatic updating feature。
+- This plugin has been included in [Zotero Plugins Collection](https://github.com/zotero-chinese/zotero-plugins), and can be automatically updated using the [zotero-addons](https://github.com/syt2/zotero-addons#readme) plugin.
+
 ## License
 
-This project is licensed under **[AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html)**. See the [LICENSE](https://github.com/OneOneLiu/zotero-annotation-summary/blob/master/LICENSE) file for details.
+This project is licensed under **[AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html)**. See the [LICENSE](https://github.com/OneOneLiu/otero-annotation-summary/blob/master/LICENSE) file for details.
 
 ---
 
