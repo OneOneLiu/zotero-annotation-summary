@@ -11,7 +11,7 @@
 
 ## Introduction
 
-A Zotero plugin that extracts and displays all highlights and notes from your library in a unified summary page. You can load and view every annotation, search by keyword, filter by color or tag (including NOT logic), hover to preview source and timestamp, click to jump directly to the corresponding item in Zotero, and view simple statistics.
+A Zotero plugin that extracts and displays all highlights and notes from your library in a unified summary page. You can load and view every annotation, search by keyword, filter by color or tag (including NOT logic), delete and batch add tags to annotations, hover to preview source and timestamp, click to jump directly to the corresponding item in Zotero, and view simple statistics.
 
 ## How to Use
 
@@ -36,10 +36,13 @@ A Zotero plugin that extracts and displays all highlights and notes from your li
   <img src="./doc/images/indexing.gif" alt="indexing" width="800">
 
 - **Color & Tag Filtering**  
-  Filter annotations by highlight color or tag. Supports NOT logic: selecting NOT plus a color or tag excludes any annotation with that color/tag; excluded items show a red strikethrough bar beneath the color swatch or tag.
+- Filter annotations by highlight color or tag. Supports 
+- NOT logic: selecting NOT plus a color or tag excludes any annotation with that color/tag.
 
   <img src="./doc/images/filtering.gif" alt="filtering" width="800">  
-  <img src="./doc/images/Not.png" alt="not" width="800">
+
+> - "And" logic is useless and will be removed in future version.
+> - There is a bug between the "OR" logic and UI, where only one colors/tag can be selected, multiple colors/tags selection will be provided in future version. As a workaround to realize "OR" logic: Set "NOT" logic -> choose multiple colors/tags -> Set back to "OR" logic.
 
 - **Date Range Filtering**  
   Choose a preset date range, from Recent 1 Day” up to “Recent 1 Year,” or show all annotations.
@@ -59,7 +62,8 @@ Double click any annotation entry to open its corresponding item in Zotero at th
 <img src="./doc/images/hyperlink.gif" alt="hyperlink" width="800">
 
 > [!note]
-> This click-to-junp feature can jump to the annotation page with PDF items, but can only jump to the item when with epub items because epub does not have pages. Other items have not been tested.
+> - This click-to-junp feature can jump to the annotation page with PDF items, but can only jump to the item when with epub items because epub does not have pages. Other items have not been tested.
+> - The newest Zotero 7 Beta version supports jump to annotation positions with epub.
 
 ### 5. Display Count & Statistics
 
@@ -73,7 +77,17 @@ Double click any annotation entry to open its corresponding item in Zotero at th
 
   <img src="./doc/images/statistics.png" alt="statistics" width="800">
 
-### 6. Dynamic UI Rendering
+### 6. delete/(batch) add tags
+- Hover the mouse onto the tags shown on the lower part of annotation items, a delete icon will show up and the tag can be deleted by a single click.
+<img src="./doc/images/deletetag.gif" alt="deletetag" width="800">
+
+
+- Click the color circle on the left top of an annotation item to select it, then you can add tags to it using the input box and button below.
+- Multiple items can be select for batch addition of tags
+
+<img src="./doc/images/addtag.gif" alt="hyperlink" width="800">
+
+### 7. Dynamic UI Rendering
 
 Everything updates in real time based on the current filter state:  
 - The list of annotations  
@@ -81,7 +95,7 @@ Everything updates in real time based on the current filter state:
 - Display count text  
 - Histograms
 
-### 7. Update
+### 8. Update
 - This plugin does not provide automatic updating feature。
 - This plugin has been included in [Zotero Plugins Collection](https://github.com/zotero-chinese/zotero-plugins), and can be automatically updated using the [zotero-addons](https://github.com/syt2/zotero-addons#readme) plugin.
 
