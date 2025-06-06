@@ -74,7 +74,7 @@
 <img src="./doc/images/statistics.png" alt="statistics" width="800">
 
 ### 6. 删除/（批量）添加标签到标注
-- 将鼠标移至条目下侧显示的标签上，该标签左侧会浮现删除按钮，点击即可删除该标签
+- 将鼠标移至条目下侧显示的标签上，该标签右侧会浮现删除按钮，点击即可删除该标签
 
 <img src="./doc/images/deletetag.gif" alt="deletetag" width="800">
 
