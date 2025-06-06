@@ -685,6 +685,14 @@
     </div>
 
     <div id="annotation-container"></div>
+    <!-- 批量添加标签 UI -->
+    <div id="batch-add-tag-bar" style="margin: 24px 0 0 0; display: flex; align-items: center; gap: 12px;">
+      <div style="position: relative; flex: 1;">
+        <input id="batch-tag-input" type="text" placeholder="输入标签" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;" autocomplete="off" />
+        <div id="batch-tag-suggestions" style="position: absolute; left: 0; right: 0; top: 100%; background: #fff; border: 1px solid #e1e5eb; border-radius: 0 0 6px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); z-index: 10; display: none;"></div>
+      </div>
+      <button id="batch-add-tag-btn" style="padding: 10px 18px; border-radius: 6px; background: var(--secondary-color); color: #fff; border: none; font-weight: 600; cursor: pointer;">添加标签</button>
+    </div>
     <div id="display-count"></div>
 
     <!-- 分页导航 -->
@@ -770,6 +778,8 @@
         dateRangeAll: '全部时间',
         displayCountZH: '共显示 {count} 条标注',
         pageTitle: 'Zotero 标注总结',
+        batchTagInputPlaceholder: '输入标签',
+        batchAddTagBtn: '添加标签',
       },
       'en-US': {
         annotationSummaryTitle: 'Zotero Annotation Summary',
@@ -801,6 +811,8 @@
         recent365days: 'Recent 1 Year',
         displayCountEN: 'Displaying {count} annotations',
         pageTitle: 'Zotero Annotation Summary',
+        batchTagInputPlaceholder: 'Enter tag',
+        batchAddTagBtn: 'Add Tag',
       }
     };
 
@@ -835,6 +847,9 @@
       document.getElementById('date-preset-7').textContent = getString('recent7days');
       document.getElementById('date-preset-30').textContent = getString('recent30days');
       document.getElementById('date-preset-365').textContent = getString('recent365days');
+      // 批量标签相关
+      document.getElementById('batch-tag-input').placeholder = getString('batchTagInputPlaceholder');
+      document.getElementById('batch-add-tag-btn').textContent = getString('batchAddTagBtn');
     }
 
     document.addEventListener('DOMContentLoaded', fillI18nText);
@@ -871,6 +886,9 @@
 
     let selectedTags = new Set();
     let selectedColors = new Set();
+
+    // —— 选中 annotation 逻辑 ——
+    let selectedAnnotationIds = new Set();
 
     // —— 在页面加载后，优先检查 URL 是否包含 file 参数 —— 
     (async function initFromZoteroFile() {
@@ -937,7 +955,9 @@
         startDate.setDate(today.getDate() - days);
         // 对比时，仅用 YYYY-MM-DD 即可
         dateStart = new Date(startDate.toISOString().slice(0, 10));
+        // 包含当天：endDate = today+1天的23:59:59.999，需要加一，否则不包含当天
         const endDate = new Date(today.toISOString().slice(0, 10));
+        endDate.setDate(endDate.getDate() + 1);
         endDate.setHours(23, 59, 59, 999);
         dateEnd = endDate;
       }
@@ -1053,27 +1073,51 @@
         return matchTag && matchColor;
       });
 
-      // —— ⑤ 合并"文字过滤结果"与"底部过滤结果"（固定 AND）—— 
+      // —— ⑤ 合并"文字筛选"与"底部筛选"结果 —— 
       const textActive = hasTextQuery || hasCommentQuery;
       const bottomActive = hasTagFilters || hasColorFilters;
+
       if (!textActive && !bottomActive) {
-        combinedResults = annotations.slice();
         if (hasDateFilter) {
           combinedResults = annotations.filter((a) => {
             if (!a.dateAdded) return false;
             const d = new Date(a.dateAdded);
             return d >= dateStart && d <= dateEnd;
           });
+        } else {
+          combinedResults = annotations.slice();
         }
       } else if (textActive && !bottomActive) {
         combinedResults = textResults.slice();
       } else if (!textActive && bottomActive) {
         combinedResults = bottomResults.slice();
-      } else {
-        // AND 合并
-        combinedResults = textResults.filter((a) =>
-          bottomResults.includes(a)
-        );
+      } else if (textActive && bottomActive) {
+        // 强制用 AND 逻辑：只有同时满足文本/评论和底部筛选（颜色/标签）才显示
+        combinedResults = textResults.filter((a) => bottomResults.includes(a));
+      }
+
+      // —— bugfix: 如果筛选后 combinedResults 为空，且当前选中的标签/颜色在所有 annotation 里都不存在，则自动清空所有筛选条件 ——
+      if (combinedResults.length === 0 && (selectedTags.size > 0 || selectedColors.size > 0)) {
+        // 检查 selectedTags 是否都还存在于 annotations
+        let allTags = new Set();
+        let allColors = new Set();
+        annotations.forEach(a => {
+          (a.tags || "").split(',').map(t => t.trim()).filter(Boolean).forEach(t => allTags.add(t));
+          if (a.color) allColors.add(a.color);
+        });
+        let tagGone = Array.from(selectedTags).every(t => !allTags.has(t) && t !== "__NO_TAG__");
+        let colorGone = Array.from(selectedColors).every(c => !allColors.has(c));
+        if ((selectedTags.size > 0 && tagGone) || (selectedColors.size > 0 && colorGone)) {
+          selectedTags.clear();
+          selectedColors.clear();
+          textInput.value = "";
+          commentInput.value = "";
+          datePresetSelect && (datePresetSelect.value = "all");
+          tagOpSelect.value = "OR";
+          colorOpSelect.value = "OR";
+          setTimeout(() => filterAnnotations(), 0);
+          return;
+        }
       }
 
       // 每次过滤完成后，总是重置到第一页
@@ -1112,9 +1156,22 @@
       }
 
       // 只渲染当前页的结果
-      pageResults.forEach((a) => {
+      pageResults.forEach((a, idx) => {
         const wrapper = document.createElement("div");
         wrapper.className = "annotation-item";
+
+        // 选中效果
+        if (selectedAnnotationIds.has(a.itemID)) {
+          wrapper.style.boxShadow = "0 0 0 3px var(--secondary-color), 0 4px 12px rgba(0,0,0,0.12)";
+          wrapper.style.transform = "scale(1.01)";
+          wrapper.style.zIndex = 2;
+          wrapper.style.background = "#f0f7ff";
+        } else {
+          wrapper.style.boxShadow = "var(--box-shadow)";
+          wrapper.style.transform = "none";
+          wrapper.style.background = "white";
+          wrapper.style.zIndex = 1;
+        }
 
         if (a.uri) {
           wrapper.style.cursor = "pointer";
@@ -1129,6 +1186,18 @@
         const colorIndicator = document.createElement("div");
         colorIndicator.className = "annotation-color";
         colorIndicator.style.backgroundColor = a.color || "#ccc";
+        colorIndicator.style.outline = selectedAnnotationIds.has(a.itemID) ? "3px solid var(--secondary-color)" : "none";
+        colorIndicator.style.outlineOffset = "2px";
+        colorIndicator.style.cursor = "pointer";
+        colorIndicator.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (selectedAnnotationIds.has(a.itemID)) {
+            selectedAnnotationIds.delete(a.itemID);
+          } else {
+            selectedAnnotationIds.add(a.itemID);
+          }
+          renderAnnotations();
+        });
         header.appendChild(colorIndicator);
         wrapper.appendChild(header);
 
@@ -1148,10 +1217,26 @@
         if (a.tags && a.tags.length > 0) {
           const tagsContainer = document.createElement("div");
           tagsContainer.className = "annotation-tags";
-          (a.tags || "").split(',').map(t => t.trim()).filter(Boolean).forEach(t => {
+          (a.tags || "").split(',').map(t => t.trim()).filter(Boolean).forEach(tag => {
             const tagElement = document.createElement("span");
             tagElement.className = "annotation-tag";
-            tagElement.textContent = t;
+            tagElement.textContent = tag;
+            // 创建删除按钮
+            const delBtn = document.createElement("span");
+            delBtn.textContent = " ×";
+            delBtn.style.color = "#c0392b";
+            delBtn.style.cursor = "pointer";
+            delBtn.style.marginLeft = "4px";
+            delBtn.style.display = "none";
+            // 悬停时显示删除按钮
+            tagElement.addEventListener("mouseenter", () => { delBtn.style.display = "inline"; });
+            tagElement.addEventListener("mouseleave", () => { delBtn.style.display = "none"; });
+            // 删除标签逻辑
+            delBtn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              removeTagFromAnnotation(a.itemID, tag, wrapper);
+            });
+            tagElement.appendChild(delBtn);
             tagsContainer.appendChild(tagElement);
           });
           wrapper.appendChild(tagsContainer);
@@ -1177,6 +1262,69 @@
           infoDiv.textContent = infoText;
           wrapper.appendChild(infoDiv);
         }
+
+        // ---- 全选/全不选按钮，仅在第一个item渲染 ----
+        if (idx === 0) {
+          const selectAllBtn = document.createElement("button");
+          selectAllBtn.className = "select-all-btn";
+          // 判断当前页是否全选
+          const allSelected = pageResults.every(item => selectedAnnotationIds.has(item.itemID));
+          selectAllBtn.textContent = allSelected ? (LOCALE === 'zh-CN' ? '全不选' : 'Deselect All') : (LOCALE === 'zh-CN' ? '全选' : 'Select All');
+          selectAllBtn.style.position = "absolute";
+          selectAllBtn.style.right = "16px";
+          selectAllBtn.style.bottom = "12px";
+          selectAllBtn.style.display = "none";
+          selectAllBtn.style.zIndex = 10;
+          selectAllBtn.style.padding = "6px 16px";
+          selectAllBtn.style.borderRadius = "6px";
+          selectAllBtn.style.background = "var(--secondary-color)";
+          selectAllBtn.style.color = "#fff";
+          selectAllBtn.style.border = "none";
+          selectAllBtn.style.fontWeight = "600";
+          selectAllBtn.style.cursor = "pointer";
+          selectAllBtn.addEventListener("mouseenter", () => {
+            selectAllBtn.style.display = "block";
+          });
+          selectAllBtn.addEventListener("mouseleave", () => {
+            selectAllBtn.style.display = "none";
+          });
+          // 按钮点击逻辑
+          selectAllBtn.addEventListener("click", () => {
+            const allSelected = pageResults.every(item => selectedAnnotationIds.has(item.itemID));
+            if (allSelected) {
+              // 全不选
+              pageResults.forEach(item => selectedAnnotationIds.delete(item.itemID));
+            } else {
+              // 全选
+              pageResults.forEach(item => selectedAnnotationIds.add(item.itemID));
+            }
+            renderAnnotations();
+          });
+          // 鼠标移到按钮上才显示
+          wrapper.addEventListener("mousemove", (e) => {
+            const rect = wrapper.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            // 判断是否在按钮区域
+            const btnRect = {
+              left: wrapper.offsetWidth - 120,
+              top: wrapper.offsetHeight - 40,
+              right: wrapper.offsetWidth,
+              bottom: wrapper.offsetHeight
+            };
+            if (x >= btnRect.left && x <= btnRect.right && y >= btnRect.top && y <= btnRect.bottom) {
+              selectAllBtn.style.display = "block";
+            } else {
+              selectAllBtn.style.display = "none";
+            }
+          });
+          // 鼠标离开item时隐藏按钮
+          wrapper.addEventListener("mouseleave", () => {
+            selectAllBtn.style.display = "none";
+          });
+          wrapper.appendChild(selectAllBtn);
+        }
+
         annotationContainer.appendChild(wrapper);
       });
 
@@ -1346,6 +1494,69 @@
       renderHistogram(tagHist, tagCounts, false);
     }
 
+    // —— 从 annotation 删除标签 —— 
+    async function removeTagFromAnnotation(itemID, tagToRemove, wrapper) {
+      try {
+        // 1. 先获取这个 item
+        const item = await window.parent.Zotero.Items.get(itemID);
+        if (!item) throw new Error("未找到 itemID=" + itemID);
+
+        // 2. 拿现有标签列表
+        const existingTagObjs = item.getTags(); // [{ tag: "...", type: ... }, …]
+        const existingTags = existingTagObjs.map(tObj => tObj.tag);
+
+        // 3. 过滤掉要删的 tag（纯文字匹配）
+        const newTagNames = existingTags.filter(t => t !== tagToRemove);
+
+        // 4. 更新 Item 对象里的标签
+        item.setTags(newTagNames.map(t => ({ tag: t })));
+
+        // 5. 把改动写回 Zotero 数据库
+        await item.saveTx();
+
+        // 6. 通知 Zotero 主界面刷新
+        window.parent.Zotero.Notifier.trigger("item", "modify", itemID);
+
+        // —— 同步更新本地 annotations 数组 —— 
+        const idx = annotations.findIndex(a => a.itemID === itemID);
+        if (idx >= 0) {
+          annotations[idx].tags = newTagNames.join(",");
+        }
+
+        // 7. 重新渲染当前这一条注释的标签区
+        const tagsContainer = wrapper.querySelector(".annotation-tags");
+        // 清掉所有原有标签及"添加标签"输入框
+        tagsContainer.querySelectorAll(".annotation-tag").forEach(el => el.remove());
+        tagsContainer.querySelectorAll(".add-tag-wrapper").forEach(el => el.remove());
+        // 重新把剩余标签渲染出来
+        newTagNames.forEach(t => {
+          const tagEl = document.createElement("span");
+          tagEl.className = "annotation-tag";
+          tagEl.textContent = t;
+          const delBtn = document.createElement("span");
+          delBtn.textContent = " ×";
+          delBtn.style.cursor = "pointer";
+          delBtn.style.color = "#c0392b";
+          delBtn.style.marginLeft = "4px";
+          delBtn.style.display = "none";
+          tagEl.addEventListener("mouseenter", () => { delBtn.style.display = "inline"; });
+          tagEl.addEventListener("mouseleave", () => { delBtn.style.display = "none"; });
+          delBtn.addEventListener("click", e => {
+            e.stopPropagation();
+            removeTagFromAnnotation(itemID, t, wrapper);
+          });
+          tagEl.appendChild(delBtn);
+          tagsContainer.appendChild(tagEl);
+        });
+        // 再次插入"添加标签"输入框（如有需要可补充）
+        // 8. 刷新底部统计和页面显示
+        filterAnnotations();
+      } catch (e) {
+        console.error("删除标签失败：", e);
+        alert("删除标签出错，请检查控制台错误信息。");
+      }
+    }
+
     // —— 绑定控件变化事件 —— 
     textInput.addEventListener("input", filterAnnotations);
     commentInput.addEventListener("input", filterAnnotations);
@@ -1369,6 +1580,94 @@
         currentPage++;
         renderAnnotations();
       }
+    });
+
+    // —— 批量添加标签相关逻辑 ——
+    const batchTagInput = document.getElementById("batch-tag-input");
+    const batchTagSuggestions = document.getElementById("batch-tag-suggestions");
+    const batchAddTagBtn = document.getElementById("batch-add-tag-btn");
+
+    // 获取当前所有可选标签（同底部 tag filter）
+    function getCurrentTagSuggestions() {
+      const tagsSet = new Set();
+      combinedResults.forEach(a => {
+        (a.tags || "").split(',').map(t => t.trim()).filter(Boolean).forEach(t => tagsSet.add(t));
+      });
+      return Array.from(tagsSet).sort((a, b) => a.localeCompare(b, "zh-CN"));
+    }
+
+    // 渲染下拉建议
+    function renderBatchTagSuggestions(filter = "") {
+      const suggestions = getCurrentTagSuggestions().filter(t => t.includes(filter));
+      if (suggestions.length === 0) {
+        batchTagSuggestions.style.display = "none";
+        return;
+      }
+      batchTagSuggestions.innerHTML = "";
+      suggestions.forEach(tag => {
+        const item = document.createElement("div");
+        item.textContent = tag;
+        item.style.padding = "8px 12px";
+        item.style.cursor = "pointer";
+        item.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          batchTagInput.value = tag;
+          batchTagSuggestions.style.display = "none";
+        });
+        batchTagSuggestions.appendChild(item);
+      });
+      batchTagSuggestions.style.display = "block";
+    }
+
+    batchTagInput.addEventListener("focus", () => {
+      renderBatchTagSuggestions(batchTagInput.value.trim());
+    });
+    batchTagInput.addEventListener("input", () => {
+      renderBatchTagSuggestions(batchTagInput.value.trim());
+    });
+    batchTagInput.addEventListener("blur", () => {
+      setTimeout(() => { batchTagSuggestions.style.display = "none"; }, 150);
+    });
+
+    // 批量添加标签按钮
+    batchAddTagBtn.addEventListener("click", async () => {
+      const tag = batchTagInput.value.trim();
+      if (!tag) {
+        alert("请输入要添加的标签");
+        return;
+      }
+      if (selectedAnnotationIds.size === 0) {
+        alert("请先选中要添加标签的批注");
+        return;
+      }
+      batchAddTagBtn.disabled = true;
+      for (const itemID of selectedAnnotationIds) {
+        try {
+          const item = await window.parent.Zotero.Items.get(itemID);
+          if (!item) continue;
+          const existingTagObjs = item.getTags();
+          const existingTags = existingTagObjs.map(tObj => tObj.tag);
+          if (!existingTags.includes(tag)) {
+            existingTags.push(tag);
+            item.setTags(existingTags.map(t => ({ tag: t })));
+            await item.saveTx();
+            window.parent.Zotero.Notifier.trigger("item", "modify", itemID);
+            // 同步本地
+            const idx = annotations.findIndex(a => a.itemID === itemID);
+            if (idx >= 0) {
+              const arr = (annotations[idx].tags || "").split(',').map(t => t.trim()).filter(Boolean);
+              if (!arr.includes(tag)) arr.push(tag);
+              annotations[idx].tags = arr.join(",");
+            }
+          }
+        } catch (e) {
+          console.error("添加标签失败", itemID, e);
+        }
+      }
+      batchAddTagBtn.disabled = false;
+      batchTagInput.value = "";
+      selectedAnnotationIds.clear();
+      filterAnnotations();
     });
   </script>
 </body>
