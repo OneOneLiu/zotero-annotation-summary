@@ -1044,6 +1044,10 @@
           if (tagOpSelect.value === "NOT") {
             if (selectedTags.has("__NO_TAG__")) {
               matchTag = arr.length > 0;
+              const otherTags = Array.from(selectedTags).filter(t => t !== "__NO_TAG__");
+              if (otherTags.some(t => arr.includes(t))) {
+                matchTag = false;
+              }
             } else {
               matchTag = arr.every((t) => !selectedTags.has(t));
             }
@@ -1355,7 +1359,7 @@
       const hasTagFilters = selectedTags.size > 0;
       const hasColorFilters = selectedColors.size > 0;
 
-      // 准备 OR 模式下的备选集
+      // —— 准备 OR 模式下的备选集 —— 
       const colorsBase = textResults.filter(a => {
         if (!hasTagFilters) return true;
         const arr = (a.tags||"").split(",").map(t=>t.trim()).filter(Boolean);
@@ -1382,64 +1386,65 @@
         return selectedColors.has(a.color);
       });
 
-      // 选择生成来源：OR 用上面备选集，AND/NOT 用 combinedResults
+      // —— 选择生成来源：OR 用备选集，AND/NOT 用 combinedResults —— 
       const colorSource = colorOpSelect.value === "OR" ? colorsBase : combinedResults;
       const tagSource   = tagOpSelect.value   === "OR" ? tagsBase   : combinedResults;
 
-      // 收集颜色和标签
+      // —— 收集唯一颜色和标签 —— 
       const colorsSet = new Set(colorSource.map(a=>a.color).filter(Boolean));
       const tagsSet   = new Set();
       tagSource.forEach(a=>{
-        (a.tags||"").split(",").map(t=>t.trim()).filter(Boolean)
-          .forEach(t=>tagsSet.add(t));
+        (a.tags||"").split(",").map(t=>t.trim()).filter(Boolean).forEach(t=>tagsSet.add(t));
       });
 
-      // 渲染“无标签”选项
       const noTagValue = "__NO_TAG__";
-      const noTagEl = document.createElement("span");
-      noTagEl.className = "tag-item";
-      noTagEl.textContent = getString("noTag");
-      if (tagOpSelect.value === "NOT" ? selectedTags.has(noTagValue) : selectedTags.has(noTagValue)) {
-        noTagEl.classList.add(tagOpSelect.value === "NOT" ? "excluded" : "selected");
+      // —— “无标签”按钮：在 NOT 模式下选中时不渲染，其他模式下选中才高亮 —— 
+      if (!(tagOpSelect.value === "NOT" && selectedTags.has(noTagValue))) {
+        const noTagEl = document.createElement("span");
+        noTagEl.className = "tag-item";
+        noTagEl.textContent = getString("noTag");
+        if (tagOpSelect.value !== "NOT" && selectedTags.has(noTagValue)) {
+          noTagEl.classList.add("selected");
+        }
+        noTagEl.addEventListener("click", () => {
+          if (selectedTags.has(noTagValue)) selectedTags.delete(noTagValue);
+          else selectedTags.add(noTagValue);
+          filterAnnotations();
+        });
+        tagsListContainer.appendChild(noTagEl);
       }
-      noTagEl.addEventListener("click", ()=>{
-        selectedTags.has(noTagValue) ? selectedTags.delete(noTagValue) : selectedTags.add(noTagValue);
-        filterAnnotations();
-      });
-      tagsListContainer.appendChild(noTagEl);
 
-      // 渲染所有标签
-      Array.from(tagsSet).sort((a,b)=>a.localeCompare(b,"zh-CN")).forEach(tag=>{
+      // —— 渲染所有标签：NOT 模式下跳过已选中的；选中状态才加.selected —— 
+      Array.from(tagsSet).sort((a,b)=>a.localeCompare(b,"zh-CN")).forEach(tag => {
+        if (tagOpSelect.value === "NOT" && selectedTags.has(tag)) return;
         const tagEl = document.createElement("span");
         tagEl.className = "tag-item";
         tagEl.textContent = tag;
-        const isExcluded = tagOpSelect.value==="NOT" && selectedTags.has(tag);
-        const isSelected = tagOpSelect.value!=="NOT" && selectedTags.has(tag);
-        if (isExcluded) tagEl.classList.add("excluded");
-        if (isSelected) tagEl.classList.add("selected");
-        tagEl.addEventListener("click", ()=>{
-          selectedTags.has(tag) ? selectedTags.delete(tag) : selectedTags.add(tag);
+        if (selectedTags.has(tag)) tagEl.classList.add("selected");
+        tagEl.addEventListener("click", () => {
+          if (selectedTags.has(tag)) selectedTags.delete(tag);
+          else selectedTags.add(tag);
           filterAnnotations();
         });
         tagsListContainer.appendChild(tagEl);
       });
 
-      // 渲染所有颜色
-      Array.from(colorsSet).sort().forEach(col=>{
+      // —— 渲染所有颜色：NOT 模式下跳过已选中的；选中状态才加.selected —— 
+      Array.from(colorsSet).sort().forEach(col => {
+        if (colorOpSelect.value === "NOT" && selectedColors.has(col)) return;
         const colEl = document.createElement("div");
         colEl.className = "color-item";
         colEl.style.backgroundColor = col;
-        const isExcluded = colorOpSelect.value==="NOT" && selectedColors.has(col);
-        const isSelected = colorOpSelect.value!=="NOT" && selectedColors.has(col);
-        if (isExcluded) colEl.classList.add("excluded");
-        if (isSelected) colEl.classList.add("selected");
-        colEl.addEventListener("click", ()=>{
-          selectedColors.has(col) ? selectedColors.delete(col) : selectedColors.add(col);
+        if (selectedColors.has(col)) colEl.classList.add("selected");
+        colEl.addEventListener("click", () => {
+          if (selectedColors.has(col)) selectedColors.delete(col);
+          else selectedColors.add(col);
           filterAnnotations();
         });
         colorsListContainer.appendChild(colEl);
       });
     }
+
 
 
     // —— 渲染直方图 —— 

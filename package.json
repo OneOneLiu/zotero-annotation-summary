@@ -1,7 +1,7 @@
 {
   "name": "zotero-annotation-summary",
   "type": "module",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "A plugin for summarizing and indexing annotations",
   "config": {
     "addonName": "annotation-summary",
