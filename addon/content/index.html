@@ -1594,8 +1594,17 @@
       renderAnnotations();
     });
     datePresetSelect.addEventListener("change", filterAnnotations);
-    tagOpSelect.addEventListener("change", filterAnnotations);
-    colorOpSelect.addEventListener("change", filterAnnotations);
+    // 切换标签逻辑时，先清空已选标签再触发过滤
+    tagOpSelect.addEventListener("change", () => {
+      selectedTags.clear();
+      filterAnnotations();
+    });
+
+    // 切换颜色逻辑时，先清空已选颜色再触发过滤
+    colorOpSelect.addEventListener("change", () => {
+      selectedColors.clear();
+      filterAnnotations();
+    });
 
     prevPageButton.addEventListener("click", () => {
       if (currentPage > 1) {
