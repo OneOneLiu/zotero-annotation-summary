@@ -41,9 +41,6 @@ A Zotero plugin that extracts and displays all highlights and notes from your li
 
   <img src="./doc/images/filtering.gif" alt="filtering" width="800">  
 
-> - "And" logic is useless and will be removed in future version.
-> - There is a bug between the "OR" logic and UI, where only one colors/tag can be selected, multiple colors/tags selection will be provided in future version. As a workaround to realize "OR" logic: Set "NOT" logic -> choose multiple colors/tags -> Set back to "OR" logic.
-
 - **Date Range Filtering**  
   Choose a preset date range, from Recent 1 Day” up to “Recent 1 Year,” or show all annotations.
 
