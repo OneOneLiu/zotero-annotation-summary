@@ -868,6 +868,86 @@
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
     }
+    // —— 将形如 &lt;b&gt; 的实体反转为 <b> ——
+    function decodeHtmlEntities(str) {
+      if (!str) return "";
+      const textarea = document.createElement("textarea");
+      textarea.innerHTML = str;
+      return textarea.value;
+    }
+    // —— 轻量白名单净化：允许常见文本标签，剥离危险属性 ——
+    function sanitizeHtml(html) {
+      const allowedTags = new Set([
+        "b","strong","i","em","u","sub","sup","br","span",
+        "p","ul","ol","li","code","pre","a"
+      ]);
+      const allowedAttrs = new Set(["href","title"]);
+      const container = document.createElement("div");
+      container.innerHTML = decodeHtmlEntities(html || "");
+      const all = container.querySelectorAll("*");
+      all.forEach((el) => {
+        const tag = el.tagName.toLowerCase();
+        if (!allowedTags.has(tag)) {
+          const parent = el.parentNode;
+          if (!parent) return;
+          while (el.firstChild) parent.insertBefore(el.firstChild, el);
+          parent.removeChild(el);
+          return;
+        }
+        // 清理属性
+        Array.from(el.attributes).forEach((attr) => {
+          const name = attr.name.toLowerCase();
+          if (name.startsWith("on")) {
+            el.removeAttribute(attr.name);
+            return;
+          }
+          if (!allowedAttrs.has(name)) {
+            el.removeAttribute(attr.name);
+            return;
+          }
+          if (name === "href") {
+            const v = el.getAttribute("href") || "";
+            if (!/^(https?:|mailto:|zotero:)/i.test(v)) {
+              el.removeAttribute("href");
+            }
+          }
+        });
+      });
+      return container.innerHTML;
+    }
+    // —— 在已渲染的元素内高亮文本节点，避免破坏原有 HTML 结构 ——
+    function highlightInElement(rootEl, query) {
+      if (!rootEl || !query) return;
+      const re = new RegExp(escapeRegExp(query), "gi");
+      const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, null, false);
+      const nodes = [];
+      let n;
+      while ((n = walker.nextNode())) {
+        if (n.nodeValue && re.test(n.nodeValue)) {
+          nodes.push(n);
+          re.lastIndex = 0;
+        }
+      }
+      nodes.forEach((textNode) => {
+        const text = textNode.nodeValue || "";
+        let last = 0;
+        let m;
+        const frag = document.createDocumentFragment();
+        while ((m = re.exec(text)) !== null) {
+          const plain = text.slice(last, m.index);
+          if (plain) frag.appendChild(document.createTextNode(plain));
+          const mark = document.createElement("mark");
+          mark.className = "highlight";
+          mark.textContent = m[0];
+          frag.appendChild(mark);
+          last = m.index + m[0].length;
+        }
+        const tail = text.slice(last);
+        if (tail) frag.appendChild(document.createTextNode(tail));
+        textNode.parentNode && textNode.parentNode.replaceChild(frag, textNode);
+        re.lastIndex = 0;
+      });
+    }
     function escapeRegExp(str) {
       return (str || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     }
@@ -1246,13 +1326,15 @@
 
         const textDiv = document.createElement("div");
         textDiv.className = "annotation-text";
-        textDiv.innerHTML = highlightHTML(a.text || "", textQueryRaw);
+        textDiv.innerHTML = sanitizeHtml(a.text || "");
+        highlightInElement(textDiv, textQueryRaw);
         wrapper.appendChild(textDiv);
 
         if (a.comment) {
           const commentDiv = document.createElement("div");
           commentDiv.className = "annotation-comment";
-          commentDiv.innerHTML = highlightHTML(a.comment, commentQueryRaw);
+          commentDiv.innerHTML = sanitizeHtml(a.comment);
+          highlightInElement(commentDiv, commentQueryRaw);
           commentDiv.style.borderLeft = `3px solid ${a.color || "var(--accent-color)"}`;
           wrapper.appendChild(commentDiv);
         }
