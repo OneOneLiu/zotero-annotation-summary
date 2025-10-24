@@ -636,6 +636,11 @@
         width: 140px;
       }
     }
+    /* —— 关键词高亮 —— */
+    mark.highlight {
+      background: #fff59d;
+      padding: 0 2px;
+    }
   </style>
 </head>
 <body>
@@ -853,6 +858,34 @@
     }
 
     document.addEventListener('DOMContentLoaded', fillI18nText);
+
+    // —— 文本安全转义与高亮 ——
+    function escapeHTML(str) {
+      return (str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+    function escapeRegExp(str) {
+      return (str || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+    function highlightHTML(text, query) {
+      if (!query) return escapeHTML(text);
+      const re = new RegExp("(" + escapeRegExp(query) + ")", "gi");
+      const parts = (text || "").split(re);
+      let html = "";
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (i % 2 === 1) {
+          html += '<mark class="highlight">' + escapeHTML(part) + '</mark>';
+        } else {
+          html += escapeHTML(part);
+        }
+      }
+      return html;
+    }
 
     // —— 全局 annotations 数组，初始为空，后续由"Zotero 加载"或"文件输入"填充 —— 
     let annotations = [];
@@ -1164,6 +1197,8 @@
       }
 
       // 只渲染当前页的结果
+      const textQueryRaw = textInput.value.trim();
+      const commentQueryRaw = commentInput.value.trim();
       pageResults.forEach((a, idx) => {
         const wrapper = document.createElement("div");
         wrapper.className = "annotation-item";
@@ -1211,13 +1246,13 @@
 
         const textDiv = document.createElement("div");
         textDiv.className = "annotation-text";
-        textDiv.textContent = a.text || "";
+        textDiv.innerHTML = highlightHTML(a.text || "", textQueryRaw);
         wrapper.appendChild(textDiv);
 
         if (a.comment) {
           const commentDiv = document.createElement("div");
           commentDiv.className = "annotation-comment";
-          commentDiv.textContent = a.comment;
+          commentDiv.innerHTML = highlightHTML(a.comment, commentQueryRaw);
           commentDiv.style.borderLeft = `3px solid ${a.color || "var(--accent-color)"}`;
           wrapper.appendChild(commentDiv);
         }
