@@ -1,11 +1,11 @@
 {
   "name": "zotero-annotation-summary",
   "type": "module",
-  "version": "0.4.4",
+  "version": "0.5.0",
   "description": "A plugin for summarizing and indexing annotations",
   "config": {
     "addonName": "annotation-summary",
-    "addonID": "annotation-summary@ldh.mail.utoronto.ca",
+    "addonID": "annotation-summary@ool.utoronto.ca",
     "addonRef": "annotation-summary",
     "addonInstance": "AnnotationSummary",
     "prefsPrefix": "extensions.zotero.annotation-summary"

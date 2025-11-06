@@ -144,6 +144,63 @@
       color: #95a5a6;
     }
 
+    /* —— 多选树样式（文件夹） —— */
+    .collections-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .collections-trigger {
+      padding: 10px 14px;
+      border: 1px solid var(--medium-gray);
+      border-radius: var(--border-radius);
+      background-color: #fff;
+      cursor: pointer;
+      min-width: 220px;
+      text-align: left;
+    }
+    .collections-panel {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      z-index: 20;
+      background: #fff;
+      border: 1px solid var(--medium-gray);
+      border-radius: var(--border-radius);
+      margin-top: 6px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+      width: 360px;
+      max-width: 90vw;
+      display: none;
+    }
+    .collections-tree {
+      max-height: 220px;
+      overflow: auto;
+      padding: 8px 10px;
+      border: 1px solid var(--medium-gray);
+      border-radius: var(--border-radius);
+      background: #fff;
+    }
+    .collections-tree ul {
+      list-style: none;
+      margin: 0;
+      padding-left: 16px;
+    }
+    .collections-tree li {
+      margin: 4px 0;
+    }
+    .collections-tree .node-label {
+      margin-left: 6px;
+    }
+    /* 右上角定位容器 */
+    .collections-top-right {
+      position: absolute;
+      top: 24px;
+      right: 30px;
+      z-index: 15;
+    }
+    .collections-top-right label { display: none; }
+    .collections-top-right .collections-panel { right: 0; left: auto; }
+
     /* ---------- 注释容器 ---------- */
     #annotation-container {
       display: grid;
@@ -647,6 +704,17 @@
   <div class="container">
     <h1 id="annotation-summary-title"></h1>
 
+    <!-- 顶部右侧：文件夹多选树下拉 -->
+    <div class="collections-top-right">
+      <label id="label-collection-filter"></label>
+      <div class="collections-dropdown">
+        <button id="collections-trigger" class="collections-trigger"></button>
+        <div id="collections-panel" class="collections-panel">
+          <div id="collections-tree" class="collections-tree"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="controls">
       <div class="control-group">
         <label for="text-search" id="label-text-search"></label>
@@ -687,6 +755,7 @@
           <option value="365" id="date-preset-365"></option>
         </select>
       </div>
+
     </div>
 
     <div id="annotation-container"></div>
@@ -775,6 +844,8 @@
         noTag: '无标签',
         noData: '暂无数据',
         daterangeLabel: '日期范围:',
+        collectionFilterLabel: '文件夹筛选:',
+        collectionAll: '全部文件夹',
         recent1day: '最近一天',
         recent3days: '最近三天',
         recent7days: '最近一周',
@@ -808,6 +879,8 @@
         noTag: 'No Tag',
         noData: 'No Data',
         daterangeLabel: 'Date Range:',
+        collectionFilterLabel: 'Folder Filter:',
+        collectionAll: 'All Collections',
         dateRangeAll: 'All',
         recent1day: 'Recent 1 Day',
         recent3days: 'Recent 3 Days',
@@ -846,6 +919,8 @@
       document.getElementById('stats-tag').textContent = getString('statsTag');
       document.getElementById('no-results').textContent = getString('noResults');
       document.getElementById('label-date-preset').textContent = getString('daterangeLabel');
+      document.getElementById('label-collection-filter').textContent = getString('collectionFilterLabel');
+      document.getElementById('collection-all').textContent = getString('collectionAll');
       document.getElementById('date-preset-all').textContent = getString('dateRangeAll');
       document.getElementById('date-preset-1').textContent = getString('recent1day');
       document.getElementById('date-preset-3').textContent = getString('recent3days');
@@ -985,6 +1060,10 @@
     const itemsPerRowInput = document.getElementById("items-per-row");
     const itemsPerPageSelect = document.getElementById("items-per-page");
     const datePresetSelect = document.getElementById("date-preset");
+    const collectionsTreeEl = document.getElementById("collections-tree");
+    const collectionsTrigger = document.getElementById("collections-trigger");
+    const collectionsPanel = document.getElementById("collections-panel");
+    let selectedCollectionPaths = new Set();
     const tagOpSelect = document.getElementById("tag-op");
     const colorOpSelect = document.getElementById("color-op");
     const prevPageButton = document.getElementById("prev-page");
@@ -1038,6 +1117,8 @@
                 } else {
                   annotations = data;
                   console.log("index.html: 已从临时文件加载注释，共", annotations.length, "条");
+                  renderCollectionsTree();
+                  updateCollectionsTriggerLabel();
                   filterAnnotations();
                   return; // 成功加载后就不执行后续的 filterAnnotations()
                 }
@@ -1052,6 +1133,8 @@
       }
       // 如果没有 file 参数或读取失败，则进行初始渲染
       console.log("index.html: 未通过 URL 参数成功加载或无参数，执行初始渲染。");
+      renderCollectionsTree();
+      updateCollectionsTriggerLabel();
       filterAnnotations();
     })();
 
@@ -1082,6 +1165,17 @@
       const hasTagFilters = selectedTags.size > 0;
       const hasColorFilters = selectedColors.size > 0;
       const hasDateFilter = dateStart !== null && dateEnd !== null;
+      const hasCollectionFilter = selectedCollectionPaths.size > 0;
+
+      function matchesCollection(a) {
+        if (!hasCollectionFilter) return true;
+        const paths = Array.isArray(a.collectionPaths) ? a.collectionPaths : [];
+        // 注释记录的 collectionPaths 已包含所有祖先路径，因此等值匹配即可覆盖父选中包含子
+        for (const sel of selectedCollectionPaths) {
+          if (paths.includes(sel)) return true;
+        }
+        return false;
+      }
 
       // —— ① 根据"日期预设 + 标注文字/评论"做第一轮筛选，得到 textResults —— 
       textResults = annotations.filter((a) => {
@@ -1091,6 +1185,7 @@
           const d = new Date(a.dateAdded);
           if (d < dateStart || d > dateEnd) return false;
         }
+        if (!matchesCollection(a)) return false;
         // 再判断文字/评论是否满足（固定 AND）
         const txt = (a.text || "").toLowerCase();
         const cmt = (a.comment || "").toLowerCase();
@@ -1150,6 +1245,7 @@
           const d = new Date(a.dateAdded);
           if (d < dateStart || d > dateEnd) return false;
         }
+        if (!matchesCollection(a)) return false;
         // 2. 判断标签
         let matchTag = true;
         if (hasTagFilters) {
@@ -1203,10 +1299,11 @@
           combinedResults = annotations.filter((a) => {
             if (!a.dateAdded) return false;
             const d = new Date(a.dateAdded);
-            return d >= dateStart && d <= dateEnd;
+            if (!(d >= dateStart && d <= dateEnd)) return false;
+            return matchesCollection(a);
           });
         } else {
-          combinedResults = annotations.slice();
+          combinedResults = annotations.filter(a => matchesCollection(a));
         }
       } else if (textActive && !bottomActive) {
         combinedResults = textResults.slice();
@@ -1566,6 +1663,149 @@
       });
     }
 
+    // —— 构建并渲染 Collection 多选树 ——
+    function renderCollectionsTree() {
+      if (!collectionsTreeEl) return;
+      // 1) 收集所有路径并构建树
+      const paths = new Set();
+      (annotations || []).forEach(a => {
+        (Array.isArray(a.collectionPaths) ? a.collectionPaths : []).forEach(p => {
+          if (p) paths.add(p);
+        });
+      });
+      const root = { name: '', path: '', children: new Map() };
+      Array.from(paths).forEach(p => {
+        const segs = String(p).split(' / ').filter(Boolean);
+        let cursor = root;
+        let acc = '';
+        segs.forEach((seg, idx) => {
+          acc = idx === 0 ? seg : acc + ' / ' + seg;
+          if (!cursor.children.has(seg)) {
+            cursor.children.set(seg, { name: seg, path: acc, children: new Map() });
+          }
+          cursor = cursor.children.get(seg);
+        });
+      });
+      // 2) 渲染树
+      collectionsTreeEl.innerHTML = '';
+      const ul = document.createElement('ul');
+      collectionsTreeEl.appendChild(ul);
+      function renderNodeMap(map, parentUL) {
+        Array.from(map.keys()).sort((a,b)=>String(a).localeCompare(String(b),'zh-CN')).forEach(key => {
+          const node = map.get(key);
+          const li = document.createElement('li');
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.dataset.path = node.path;
+          cb.checked = selectedCollectionPaths.has(node.path);
+          cb.addEventListener('change', (e) => {
+            const checked = cb.checked;
+            // 选中/取消该节点及所有后代
+            toggleDescendants(li, checked);
+            // 更新祖先半选状态
+            updateAncestors(li);
+            updateCollectionsTriggerLabel();
+            filterAnnotations();
+          });
+          const label = document.createElement('span');
+          label.className = 'node-label';
+          label.textContent = node.name;
+          li.appendChild(cb);
+          li.appendChild(label);
+          if (node.children.size > 0) {
+            const childUL = document.createElement('ul');
+            renderNodeMap(node.children, childUL);
+            li.appendChild(childUL);
+          }
+          parentUL.appendChild(li);
+        });
+      }
+      renderNodeMap(root.children, ul);
+
+      function toggleDescendants(li, checked) {
+        const cb = li.querySelector('input[type="checkbox"]');
+        if (cb && cb.dataset.path) {
+          if (checked) selectedCollectionPaths.add(cb.dataset.path);
+          else selectedCollectionPaths.delete(cb.dataset.path);
+          cb.checked = checked;
+          cb.indeterminate = false;
+        }
+        const childCBs = li.querySelectorAll('ul input[type="checkbox"]');
+        childCBs.forEach((c) => {
+          const path = c.dataset.path;
+          c.checked = checked;
+          c.indeterminate = false;
+          if (path) {
+            if (checked) selectedCollectionPaths.add(path);
+            else selectedCollectionPaths.delete(path);
+          }
+        });
+      }
+
+      function updateAncestors(li) {
+        let parent = li.parentElement;
+        // climb up to top ul under tree
+        while (parent && parent !== collectionsTreeEl) {
+          if (parent.tagName.toLowerCase() === 'ul') {
+            const pli = parent.parentElement;
+            if (pli && pli.tagName.toLowerCase() === 'li') {
+              const checks = parent.querySelectorAll(':scope > li > input[type="checkbox"]');
+              let allChecked = true, anyChecked = false;
+              checks.forEach((c) => {
+                if (c.checked) anyChecked = true; else allChecked = false;
+                if (c.indeterminate) { anyChecked = true; allChecked = false; }
+              });
+              const pcb = pli.querySelector(':scope > input[type="checkbox"]');
+              if (pcb) {
+                if (allChecked) { pcb.checked = true; pcb.indeterminate = false; }
+                else if (anyChecked) { pcb.checked = false; pcb.indeterminate = true; }
+                else { pcb.checked = false; pcb.indeterminate = false; }
+                // 同步 selectedCollectionPaths
+                const path = pcb.dataset.path;
+                if (path) {
+                  if (pcb.checked) selectedCollectionPaths.add(path);
+                  else selectedCollectionPaths.delete(path);
+                }
+              }
+              parent = pli.parentElement;
+              continue;
+            }
+          }
+          parent = parent.parentElement;
+        }
+      }
+    }
+
+    // —— 下拉开合与按钮文案 ——
+    function toggleCollectionsPanel(show) {
+      if (!collectionsPanel) return;
+      const target = (typeof show === 'boolean') ? show : (collectionsPanel.style.display !== 'block');
+      collectionsPanel.style.display = target ? 'block' : 'none';
+    }
+    function updateCollectionsTriggerLabel() {
+      if (!collectionsTrigger) return;
+      if (selectedCollectionPaths.size === 0) {
+        collectionsTrigger.textContent = getString('collectionAll');
+        return;
+      }
+      const arr = Array.from(selectedCollectionPaths).sort((a,b)=>String(a).localeCompare(String(b),'zh-CN'));
+      if (arr.length <= 2) {
+        collectionsTrigger.textContent = arr.join(', ');
+      } else {
+        collectionsTrigger.textContent = arr[0] + ` +${arr.length - 1}`;
+      }
+    }
+    collectionsTrigger && collectionsTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleCollectionsPanel();
+    });
+    document.addEventListener('click', (e) => {
+      if (!collectionsPanel) return;
+      if (collectionsPanel.style.display !== 'block') return;
+      const within = collectionsPanel.contains(e.target) || collectionsTrigger.contains(e.target);
+      if (!within) toggleCollectionsPanel(false);
+    });
+
 
 
     // —— 渲染直方图 —— 
@@ -1729,6 +1969,10 @@
     // 切换颜色逻辑时，先清空已选颜色再触发过滤
     colorOpSelect.addEventListener("change", () => {
       selectedColors.clear();
+      filterAnnotations();
+    });
+
+    collectionSelect.addEventListener("change", () => {
       filterAnnotations();
     });
 

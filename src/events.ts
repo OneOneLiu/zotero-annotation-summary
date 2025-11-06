@@ -137,12 +137,69 @@ export async function extractAllAnnotations(): Promise<string | null> {
       let title = "未知";
       const attachment = await Zotero.Items.get(item.parentID);
       let pdfKey = "";
+      let topItem: any = null;
+      let collectionIDs: Array<number | string> = [];
+      let collectionNames: string[] = [];
+      let collectionPaths: string[] = [];
       if (attachment?.isAttachment()) {
         pdfKey = attachment.key ?? "";
         const parentID = attachment.parentID;
         if (parentID) {
           const parentItem = await Zotero.Items.get(parentID);
           title = parentItem?.getField("title") ?? "未知";
+          // 向上找到顶层条目
+          topItem = parentItem;
+          try {
+            // 若还有父级则继续向上
+            while (topItem && typeof topItem.isTopLevelItem === "function" && !topItem.isTopLevelItem()) {
+              const pid = topItem.parentID;
+              if (!pid) break;
+              topItem = await Zotero.Items.get(pid);
+            }
+          } catch {}
+          // 收集顶层条目的 collections
+          try {
+            if (topItem && typeof topItem.getCollections === "function") {
+              const ids = topItem.getCollections(); // 可能是同步数组
+              if (Array.isArray(ids)) {
+                collectionIDs = ids as Array<number | string>;
+                const seenNames = new Set<string>();
+                const seenPaths = new Set<string>();
+                for (const cid of ids) {
+                  try {
+                    const col = await Zotero.Collections.get(cid as any);
+                    if (col) {
+                      // 构建从根到当前的路径段
+                      const segs: string[] = [];
+                      let cursor: any = col;
+                      let guard2 = 0;
+                      while (cursor && guard2 < 30) {
+                        if (cursor.name) segs.unshift(cursor.name);
+                        if (!cursor.parentID) break;
+                        cursor = await Zotero.Collections.get(cursor.parentID);
+                        guard2++;
+                      }
+                      // 推入所有祖先名称（供按名称平铺筛选兼容）
+                      segs.forEach((n) => {
+                        if (!seenNames.has(n)) {
+                          seenNames.add(n);
+                          collectionNames.push(n);
+                        }
+                      });
+                      // 推入所有从根到各层的路径（父选中包含子）
+                      for (let i = 0; i < segs.length; i++) {
+                        const path = segs.slice(0, i + 1).join(" / ");
+                        if (!seenPaths.has(path)) {
+                          seenPaths.add(path);
+                          collectionPaths.push(path);
+                        }
+                      }
+                    }
+                  } catch {}
+                }
+              }
+            }
+          } catch {}
         } else {
           Zotero.debug(`⚠️ 附件无 parentItem`);
         }
@@ -170,6 +227,10 @@ export async function extractAllAnnotations(): Promise<string | null> {
         pdfKey,
         uri,
         parentID: item.parentID,
+        topItemID: topItem?.itemID ?? undefined,
+        collectionIDs,
+        collectionNames,
+        collectionPaths,
       });
     } catch (e) {
       Zotero.debug(`❌ 注释 ${i + 1} 处理出错: ${e}`);
