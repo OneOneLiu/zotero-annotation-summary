@@ -194,11 +194,11 @@ h2 {
 #annotation-container {
   display: grid;
   grid-template-columns: repeat(1, 1fr);
-  gap: 25px;
-  padding: 20px;
-  max-height: 500px;
-  min-height: 500px;
-  height: 500px;
+  gap: 16px;
+  padding: 16px;
+  max-height: 75vh;
+  min-height: 75vh;
+  height: 75vh;
   overflow-y: auto;
   background-color: white;
   border: 1px solid var(--medium-gray);
@@ -274,7 +274,7 @@ h2 {
 .annotation-item {
   cursor: pointer;
   border-radius: var(--border-radius);
-  padding: 20px;
+  padding: 12px;
   box-shadow: var(--box-shadow);
   opacity: 1;
   transition: var(--transition);
@@ -295,39 +295,41 @@ h2 {
 }
 
 .annotation-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--medium-gray);
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .annotation-color {
-  width: 26px;
-  height: 26px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .annotation-text {
-  font-weight: 600;
+  font-weight: normal;
   word-break: break-word;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   flex-grow: 1;
-  font-size: 1.1rem;
+  font-size: 0.98rem;
   color: var(--primary-color);
   line-height: 1.5;
+  padding-right: 28px; /* 为右上角圆点让出空间 */
 }
 
 .annotation-comment {
   font-size: 1rem;
   word-break: break-word;
-  margin-top: 15px;
-  padding: 15px;
+  margin-top: 6px;
+  padding: 8px;
   background-color: var(--light-gray);
   border-radius: var(--border-radius);
-  font-style: italic;
+  font-style: normal;
   line-height: 1.6;
   position: relative;
 }
@@ -345,8 +347,8 @@ h2 {
 .annotation-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 15px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .annotation-tag {
@@ -373,25 +375,26 @@ h2 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: none;
 }
 
 /* 悬浮显示来源和时间的浮层 */
 .annotation-hover-info {
   display: none;
   position: absolute;
-  top: 10px;
   right: 10px;
+  bottom: 8px;
   background-color: rgba(0, 0, 0, 0.8);
   color: white;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 4px;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   white-space: nowrap;
   z-index: 10;
   backdrop-filter: blur(2px);
 }
 
-.annotation-item:hover .annotation-hover-info {
+#annotation-container.per-1 .annotation-item:hover .annotation-hover-info {
   display: block;
 }
 

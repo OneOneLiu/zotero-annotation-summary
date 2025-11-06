@@ -252,6 +252,11 @@ function renderAnnotations() {
   annotationContainer.innerHTML = "";
   const perRow = Math.min(3, parseInt(itemsPerRowInput.value, 10) || 1);
   annotationContainer.style.gridTemplateColumns = `repeat(${perRow}, 1fr)`;
+  // 标记当前每行列数，供样式控制悬停信息开关
+  try {
+    (annotationContainer as any).classList.remove('per-1','per-2','per-3');
+    (annotationContainer as any).classList.add(`per-${perRow}`);
+  } catch {}
   const perPage = parseInt(itemsPerPageSelect.value, 10) || 50;
   const totalCount = combinedResults.length;
   totalPages = Math.ceil(totalCount / perPage) || 1;
@@ -305,6 +310,9 @@ function renderAnnotations() {
     textDiv.className = "annotation-text";
     (textDiv as any).innerHTML = sanitizeHtml(a.text || "");
     highlightInElement(textDiv, textQueryRaw);
+    // 原文采用 quote 风格：按颜色加左侧竖线
+    (textDiv as any).style.borderLeft = `3px solid ${a.color || "var(--accent-color)"}`;
+    (textDiv as any).style.paddingLeft = '8px';
     wrapper.appendChild(textDiv);
 
     if (a.comment) {
@@ -312,7 +320,8 @@ function renderAnnotations() {
       commentDiv.className = "annotation-comment";
       (commentDiv as any).innerHTML = sanitizeHtml(a.comment);
       highlightInElement(commentDiv, commentQueryRaw);
-      (commentDiv as any).style.borderLeft = `3px solid ${a.color || "var(--accent-color)"}`;
+      // 评论仅浅底色，不使用左侧竖线
+      (commentDiv as any).style.borderLeft = '0';
       wrapper.appendChild(commentDiv);
     }
 
