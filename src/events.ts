@@ -25,15 +25,8 @@ export function onMainWindowLoad(
       openTabMenuItem.setAttribute("label", getString("menuitem-open-annotation-summary"));
       openTabMenuItem.setAttribute("id", "zotero-tb-open-tab");
       openTabMenuItem.addEventListener("command", async () => {
-        Zotero.debug("【菜单点击】开始导出并打开注释总结");
-        // 先导出注释到临时文件，返回其 fileUri
         const fileUri = await extractAllAnnotations!();
-        if (fileUri) {
-          // 再打开标签页
-          openHelloZoteroTab(fileUri);
-        } else {
-          Zotero.debug("❌ extractAllAnnotations 返回 null，未打开页面");
-        }
+        if (fileUri) openHelloZoteroTab(fileUri);
       });
       toolsMenu.appendChild(openTabMenuItem);
     }
@@ -41,7 +34,7 @@ export function onMainWindowLoad(
 }
 
 // —— 点击"打开注释总结"后，直接打开标签页并加载 index.html，用传入的 fileUri —— 
-function openHelloZoteroTab(fileUri: string) {
+export function openHelloZoteroTab(fileUri: string) {
   const Zotero_Tabs = Zotero.getMainWindow().Zotero_Tabs;
   const { container } = Zotero_Tabs.add({
     type: "library",
@@ -78,150 +71,85 @@ function openHelloZoteroTab(fileUri: string) {
 
 // —— 提取所有注释，结果写入临时文件，返回 file:// URI；发生错误时返回 null —— 
 export async function extractAllAnnotations(): Promise<string | null> {
-  Zotero.debug("🟡 开始执行 extractAllAnnotations");
+  const libs = await Zotero.Libraries.getAll();
+  const userLib = libs.find((lib) => lib.libraryType === "user");
+  if (!userLib) return null;
 
-  let items: any[] = [];
-  let libraryID: number | undefined;
+  const items = await Zotero.Items.getAll(userLib.libraryID);
+  const annotations = items.filter((i) => i.isAnnotation && i.isAnnotation());
+  if (annotations.length === 0) return null;
+
   const result: any[] = [];
-
-  try {
-    const libs = await Zotero.Libraries.getAll();
-    if (libs.length === 0) throw new Error("没有找到任何 Library");
-
-    libraryID = libs.find((lib) => lib.libraryType === "user")?.libraryID;
-    if (!libraryID) throw new Error("未找到有效的 user library");
-
-    Zotero.debug(`📚 使用库 ID: ${libraryID}`);
-    items = await Zotero.Items.getAll(libraryID);
-    Zotero.debug(`🟢 获取到 ${items.length} 个条目`);
-  } catch (e) {
-    Zotero.debug(`🔴 获取条目出错: ${e}`);
-    return null;
-  }
-
-  // 过滤出 annotation 类型条目
-  const annotations = items.filter((i) => {
+  for (const itemAny of annotations as any[]) {
+    const item: any = itemAny;
     try {
-      return i.isAnnotation && i.isAnnotation();
-    } catch (e) {
-      Zotero.debug(`⚠️ 条目处理出错: ${e}`);
-      return false;
-    }
-  });
-  Zotero.debug(`🔍 找到 ${annotations.length} 条注释`);
-  if (annotations.length === 0) {
-    Zotero.debug("⚠️ 没有找到 annotation 类型条目");
-    return null;
-  }
+      const fullItem: any = item.toJSON();
+      const pos = JSON.parse(fullItem.annotationPosition ?? "{}");
 
-  // 逐条收集所需字段，并且把 itemID 也写进去
-  for (let i = 0; i < annotations.length; i++) {
-    const item = annotations[i];
-    try {
-      const fullItem = item.toJSON();
-      const text = fullItem.annotationText ?? "";
-      const comment = fullItem.annotationComment ?? "";
-      const color = fullItem.annotationColor ?? "";
-      const pageLabel = fullItem.annotationPageLabel ?? "";
-      const posRaw = fullItem.annotationPosition ?? "{}";
-      const pos = JSON.parse(posRaw);
-      const pageIndex = pos.pageIndex ?? "";
-      const type = fullItem.annotationType ?? "";
-      const tags = (fullItem.tags || []).map((t: any) => t.tag).join(", ");
-      const dateAdded = fullItem.dateAdded ?? "";
-      const key = fullItem.key ?? "";
-
-      // —— 这里把数值型 itemID 也存起来 —— 
-      const itemID = item.itemID; 
-
+      const attachment: any = await Zotero.Items.get(item.parentID);
       let title = "未知";
-      const attachment = await Zotero.Items.get(item.parentID);
       let pdfKey = "";
       let topItem: any = null;
-      let collectionIDs: Array<number | string> = [];
-      let collectionNames: string[] = [];
-      let collectionPaths: string[] = [];
       if (attachment?.isAttachment()) {
         pdfKey = attachment.key ?? "";
-        const parentID = attachment.parentID;
-        if (parentID) {
-          const parentItem = await Zotero.Items.get(parentID);
-          title = parentItem?.getField("title") ?? "未知";
-          // 向上找到顶层条目
-          topItem = parentItem;
-          try {
-            // 若还有父级则继续向上
-            while (topItem && typeof topItem.isTopLevelItem === "function" && !topItem.isTopLevelItem()) {
-              const pid = topItem.parentID;
-              if (!pid) break;
-              topItem = await Zotero.Items.get(pid);
-            }
-          } catch {}
-          // 收集顶层条目的 collections
-          try {
-            if (topItem && typeof topItem.getCollections === "function") {
-              const ids = topItem.getCollections(); // 可能是同步数组
-              if (Array.isArray(ids)) {
-                collectionIDs = ids as Array<number | string>;
-                const seenNames = new Set<string>();
-                const seenPaths = new Set<string>();
-                for (const cid of ids) {
-                  try {
-                    const col = await Zotero.Collections.get(cid as any);
-                    if (col) {
-                      // 构建从根到当前的路径段
-                      const segs: string[] = [];
-                      let cursor: any = col;
-                      let guard2 = 0;
-                      while (cursor && guard2 < 30) {
-                        if (cursor.name) segs.unshift(cursor.name);
-                        if (!cursor.parentID) break;
-                        cursor = await Zotero.Collections.get(cursor.parentID);
-                        guard2++;
-                      }
-                      // 推入所有祖先名称（供按名称平铺筛选兼容）
-                      segs.forEach((n) => {
-                        if (!seenNames.has(n)) {
-                          seenNames.add(n);
-                          collectionNames.push(n);
-                        }
-                      });
-                      // 推入所有从根到各层的路径（父选中包含子）
-                      for (let i = 0; i < segs.length; i++) {
-                        const path = segs.slice(0, i + 1).join(" / ");
-                        if (!seenPaths.has(path)) {
-                          seenPaths.add(path);
-                          collectionPaths.push(path);
-                        }
-                      }
-                    }
-                  } catch {}
-                }
-              }
-            }
-          } catch {}
-        } else {
-          Zotero.debug(`⚠️ 附件无 parentItem`);
+        const parentItem = (typeof attachment.parentID === "number" || typeof attachment.parentID === "string")
+          ? await Zotero.Items.get(attachment.parentID)
+          : null;
+        title = parentItem?.getField("title") ?? title;
+        topItem = parentItem;
+        while (topItem && typeof topItem.isTopLevelItem === "function" && !topItem.isTopLevelItem()) {
+          const pid = topItem.parentID;
+          if (!pid) break;
+          topItem = await Zotero.Items.get(pid);
         }
-      } else {
-        Zotero.debug(`⚠️ 该注释父项不是附件？ID: ${item.parentID}`);
       }
 
-      let uri = "";
-      if (fullItem.parentItem) {
-        uri = `zotero://open/library/items/${fullItem.parentItem}?page=&annotation=${key}`;
+      let collectionIDs: Array<number | string> = [];
+      const collectionNames: string[] = [];
+      const collectionPaths: string[] = [];
+      if (topItem && typeof topItem.getCollections === "function") {
+        const ids = topItem.getCollections();
+        if (Array.isArray(ids)) {
+          collectionIDs = ids as Array<number | string>;
+          const seenNames = new Set<string>();
+          const seenPaths = new Set<string>();
+          for (const cid of ids) {
+            try {
+              const col = await Zotero.Collections.get(cid as any);
+              if (!col) continue;
+              const segs: string[] = [];
+              let cursor: any = col;
+              let guard = 0;
+              while (cursor && guard < 30) {
+                if (cursor.name) segs.unshift(cursor.name);
+                if (!cursor.parentID) break;
+                cursor = await Zotero.Collections.get(cursor.parentID);
+                guard++;
+              }
+              segs.forEach((n) => { if (!seenNames.has(n)) { seenNames.add(n); collectionNames.push(n); } });
+              for (let i = 0; i < segs.length; i++) {
+                const path = segs.slice(0, i + 1).join(" / ");
+                if (!seenPaths.has(path)) { seenPaths.add(path); collectionPaths.push(path); }
+              }
+            } catch {}
+          }
+        }
       }
+
+      const key = fullItem.key ?? "";
+      const parentItemKey = fullItem.parentItem;
+      const uri = parentItemKey ? `zotero://open/library/items/${parentItemKey}?page=&annotation=${key}` : "";
 
       result.push({
-        itemID,       // <—— 数值型 itemID
-        text,
-        comment,
-        color,
-        pageLabel,
-        pageIndex,
-        type,
-        tags,
-        dateAdded,
+        itemID: item.itemID,
+        text: fullItem.annotationText ?? "",
+        comment: fullItem.annotationComment ?? "",
+        color: fullItem.annotationColor ?? "",
+        pageLabel: fullItem.annotationPageLabel ?? "",
+        pageIndex: pos.pageIndex ?? "",
+        type: fullItem.annotationType ?? "",
+        tags: (fullItem.tags || []).map((t: any) => t.tag).join(", "),
+        dateAdded: fullItem.dateAdded ?? "",
         key,
         sourceTitle: title,
         pdfKey,
@@ -232,38 +160,21 @@ export async function extractAllAnnotations(): Promise<string | null> {
         collectionNames,
         collectionPaths,
       });
-    } catch (e) {
-      Zotero.debug(`❌ 注释 ${i + 1} 处理出错: ${e}`);
-    }
+    } catch {}
   }
 
   try {
     const json = JSON.stringify(result, null, 2);
-
-    // 1. 用 XPCOM 获取系统临时目录
     const tmpDir = (Components as any).classes["@mozilla.org/file/directory_service;1"]
       .getService((Components as any).interfaces.nsIProperties)
       .get("TmpD", (Components as any).interfaces.nsIFile);
-
-    // 2. 在临时目录下创建唯一文件名
-    const fileName = `annotation-summary-${Date.now()}.json`;
     const tempFile = tmpDir.clone();
-    tempFile.append(fileName);
-
-    // 3. 将 JSON 写到该临时文件
+    tempFile.append(`annotation-summary-${Date.now()}.json`);
     await Zotero.File.putContents(tempFile, json);
-
-    // 4. 构造 file:// URI
     const fileUri = `file://${tempFile.path.replace(/\\/g, "/")}`;
-
-    // 5. 把 fileUri 存到 Pref："<addonID>.lastTempFile"
-    const rawKey = `${config.addonID}.lastTempFile`;
-    Zotero.Prefs.set(rawKey, fileUri);
-    Zotero.debug("✅ 已将临时文件 URI 写入 Pref: " + rawKey + " ==> " + fileUri);
-
+    Zotero.Prefs.set(`${config.addonID}.lastTempFile`, fileUri);
     return fileUri;
-  } catch (e) {
-    Zotero.debug("❌ 写入临时文件失败: " + e);
+  } catch {
     return null;
   }
 }
