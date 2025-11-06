@@ -36,6 +36,15 @@ export default defineConfig({
         target: "firefox115",
         outfile: `.scaffold/build/addon/content/scripts/${pkg.config.addonRef}.js`,
       },
+      {
+        entryPoints: ["src/ui/index.ts"],
+        define: {
+          __env__: `"${process.env.NODE_ENV}"`,
+        },
+        bundle: true,
+        target: "firefox115",
+        outfile: `.scaffold/build/addon/content/scripts/summary-ui.js`,
+      },
     ],
   },
 

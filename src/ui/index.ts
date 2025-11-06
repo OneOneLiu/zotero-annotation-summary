@@ -1,0 +1,784 @@
+// @ts-nocheck
+import { LOCALE, getString, fillI18nText } from './i18n';
+import { escapeHTML, decodeHtmlEntities, sanitizeHtml, escapeRegExp, highlightHTML, highlightInElement } from './utils';
+
+document.addEventListener('DOMContentLoaded', fillI18nText);
+
+// —— 文本安全转义与高亮 ——
+// utils imported above
+
+// —— 全局 annotations 数组 ——
+let annotations: any[] = [];
+let textResults: any[] = [];
+let bottomResults: any[] = [];
+let combinedResults: any[] = [];
+
+let currentPage = 1;
+let totalPages = 1;
+
+const textInput = document.getElementById("text-search") as any;
+const commentInput = document.getElementById("comment-search") as any;
+const itemsPerRowInput = document.getElementById("items-per-row") as any;
+const itemsPerPageSelect = document.getElementById("items-per-page") as any;
+const datePresetSelect = document.getElementById("date-preset") as any;
+const collectionsTreeEl = document.getElementById("collections-tree") as any;
+const collectionsTrigger = document.getElementById("collections-trigger") as any;
+const collectionsPanel = document.getElementById("collections-panel") as any;
+let selectedCollectionPaths = new Set<string>();
+const tagOpSelect = document.getElementById("tag-op") as any;
+const colorOpSelect = document.getElementById("color-op") as any;
+const prevPageButton = document.getElementById("prev-page") as any;
+const nextPageButton = document.getElementById("next-page") as any;
+const pageInfoSpan = document.getElementById("page-info") as any;
+
+const annotationContainer = document.getElementById("annotation-container") as any;
+const displayCountDiv = document.getElementById("display-count") as any;
+const noResultsDiv = document.getElementById("no-results") as any;
+const tagsListContainer = document.getElementById("tags-list") as any;
+const colorsListContainer = document.getElementById("colors-list") as any;
+
+let selectedTags = new Set<string>();
+let selectedColors = new Set<string>();
+let selectedAnnotationIds = new Set<number>();
+
+(async function initFromZoteroFile() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const encodedFile = params.get("file");
+    if (encodedFile) {
+      console.log("index.html: 找到 file 参数，准备从临时文件读取…", encodedFile);
+      const parentZotero = (window as any).parent?.Zotero;
+      if (!parentZotero) {
+        console.warn("index.html: window.parent.Zotero 未定义，无法通过 Zotero API 读取");
+      } else {
+        const fileUri = decodeURIComponent(encodedFile);
+        console.log("index.html: 解码后 fileUri =", fileUri);
+        try {
+          const ioService = (window as any).Components.classes["@mozilla.org/network/io-service;1"]
+            .getService((window as any).Components.interfaces.nsIIOService);
+          const fileURL = ioService.newURI(fileUri, null, null)
+            .QueryInterface((window as any).Components.interfaces.nsIFileURL);
+          const nsIFile = fileURL.file;
+          const jsonStr = await parentZotero.File.getContents(nsIFile);
+          if (jsonStr) {
+            const data = JSON.parse(jsonStr);
+            if (Array.isArray(data)) {
+              annotations = data;
+              console.log("index.html: 已从临时文件加载注释，共", annotations.length, "条");
+              renderCollectionsTree();
+              updateCollectionsTriggerLabel();
+              filterAnnotations();
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("index.html: 通过 Zotero API 读取临时文件时出错：", e);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("index.html: initFromZoteroFile 异常：", e);
+  }
+  console.log("index.html: 未通过 URL 参数成功加载或无参数，执行初始渲染。");
+  renderCollectionsTree();
+  updateCollectionsTriggerLabel();
+  filterAnnotations();
+})();
+
+function filterAnnotations() {
+  const presetVal = datePresetSelect.value;
+  let dateStart: any = null;
+  let dateEnd: any = null;
+  if (presetVal !== "all") {
+    const days = parseInt(presetVal, 10);
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - days);
+    dateStart = new Date(startDate.toISOString().slice(0, 10));
+    const endDate = new Date(today.toISOString().slice(0, 10));
+    endDate.setDate(endDate.getDate() + 1);
+    endDate.setHours(23, 59, 59, 999);
+    dateEnd = endDate;
+  }
+
+  const textQuery = textInput.value.trim().toLowerCase();
+  const commentQuery = commentInput.value.trim().toLowerCase();
+  const hasTextQuery = textQuery !== "";
+  const hasCommentQuery = commentQuery !== "";
+  const hasTagFilters = selectedTags.size > 0;
+  const hasColorFilters = selectedColors.size > 0;
+  const hasDateFilter = dateStart !== null && dateEnd !== null;
+  const hasCollectionFilter = selectedCollectionPaths.size > 0;
+
+  function matchesCollection(a) {
+    if (!hasCollectionFilter) return true;
+    const paths = Array.isArray(a.collectionPaths) ? a.collectionPaths : [];
+    for (const sel of selectedCollectionPaths) {
+      if (paths.includes(sel)) return true;
+    }
+    return false;
+  }
+
+  textResults = annotations.filter((a) => {
+    if (hasDateFilter) {
+      if (!a.dateAdded) return false;
+      const d = new Date(a.dateAdded);
+      if (d < dateStart || d > dateEnd) return false;
+    }
+    if (!matchesCollection(a)) return false;
+    const txt = (a.text || "").toLowerCase();
+    const cmt = (a.comment || "").toLowerCase();
+    const matchText = hasTextQuery ? txt.includes(textQuery) : false;
+    const matchComment = hasCommentQuery ? cmt.includes(commentQuery) : false;
+    if (!hasTextQuery && !hasCommentQuery) return true;
+    if (hasTextQuery && hasCommentQuery) return matchText && matchComment;
+    return hasTextQuery ? matchText : matchComment;
+  });
+
+  let tagsSource = textResults;
+  if (hasColorFilters) {
+    tagsSource = textResults.filter((a) => (selectedColors as any).has(a.color));
+  }
+
+  let colorsSource = textResults;
+  if (hasTagFilters) {
+    colorsSource = textResults.filter((a) => {
+      const arr = (a.tags || "").split(',').map((t: string) => t.trim()).filter(Boolean);
+      if (tagOpSelect.value === "NOT") {
+        if ((selectedTags as any).has("__NO_TAG__")) return arr.length > 0;
+        return arr.every((t) => (selectedTags as any).has(t) === false);
+      } else {
+        if ((selectedTags as any).has("__NO_TAG__")) return arr.length === 0;
+        if (arr.length === 0) return false;
+        if (tagOpSelect.value === "AND") {
+          return Array.from(selectedTags).every((t: any) => arr.includes(t as any));
+        }
+        return Array.from(selectedTags).some((t: any) => arr.includes(t as any));
+      }
+    });
+  }
+
+  bottomResults = annotations.filter((a) => {
+    if (hasDateFilter) {
+      if (!a.dateAdded) return false;
+      const d = new Date(a.dateAdded);
+      if (d < dateStart || d > dateEnd) return false;
+    }
+    if (!matchesCollection(a)) return false;
+    let matchTag = true;
+    if (hasTagFilters) {
+      const arr = (a.tags || "").split(',').map((t: string) => t.trim()).filter(Boolean);
+      if (tagOpSelect.value === "NOT") {
+        if ((selectedTags as any).has("__NO_TAG__")) {
+          matchTag = arr.length > 0;
+          const otherTags = Array.from(selectedTags).filter((t: any) => t !== "__NO_TAG__");
+          if (otherTags.some((t: any) => arr.includes(t as any))) matchTag = false;
+        } else {
+          matchTag = arr.every((t) => (selectedTags as any).has(t) === false);
+        }
+      } else {
+        if ((selectedTags as any).has("__NO_TAG__")) {
+          matchTag = arr.length === 0;
+          const otherTags = Array.from(selectedTags).filter((t: any) => t !== "__NO_TAG__");
+          if (otherTags.some((t: any) => arr.includes(t as any))) matchTag = true;
+        } else if (arr.length === 0) {
+          matchTag = false;
+        } else if (tagOpSelect.value === "AND") {
+          matchTag = Array.from(selectedTags).every((t: any) => arr.includes(t as any));
+        } else {
+          matchTag = Array.from(selectedTags).some((t: any) => arr.includes(t as any));
+        }
+      }
+    }
+    let matchColor = true;
+    if (hasColorFilters) {
+      if (colorOpSelect.value === "NOT") matchColor = !(selectedColors as any).has(a.color);
+      else if (colorOpSelect.value === "AND") matchColor = selectedColors.size === 1 && (selectedColors as any).has(a.color);
+      else matchColor = (selectedColors as any).has(a.color);
+    }
+    return matchTag && matchColor;
+  });
+
+  const textActive = hasTextQuery || hasCommentQuery;
+  const bottomActive = hasTagFilters || hasColorFilters;
+  if (!textActive && !bottomActive) {
+    if (hasDateFilter) {
+      combinedResults = annotations.filter((a) => {
+        if (!a.dateAdded) return false;
+        const d = new Date(a.dateAdded);
+        if (!(d >= dateStart && d <= dateEnd)) return false;
+        return matchesCollection(a);
+      });
+    } else {
+      combinedResults = annotations.filter(a => matchesCollection(a));
+    }
+  } else if (textActive && !bottomActive) {
+    combinedResults = textResults.slice();
+  } else if (!textActive && bottomActive) {
+    combinedResults = bottomResults.slice();
+  } else if (textActive && bottomActive) {
+    combinedResults = textResults.filter((a) => bottomResults.includes(a));
+  }
+
+  if (combinedResults.length === 0 && (selectedTags.size > 0 || selectedColors.size > 0)) {
+    let allTags = new Set();
+    let allColors = new Set();
+    annotations.forEach(a => {
+      (a.tags || "").split(',').map((t: string) => t.trim()).filter(Boolean).forEach((t: any) => (allTags as any).add(t));
+      if (a.color) (allColors as any).add(a.color);
+    });
+    let tagGone = Array.from(selectedTags).every((t: any) => !(allTags as any).has(t) && t !== "__NO_TAG__");
+    let colorGone = Array.from(selectedColors).every((c: any) => !(allColors as any).has(c));
+    if ((selectedTags.size > 0 && tagGone) || (selectedColors.size > 0 && colorGone)) {
+      selectedTags.clear();
+      selectedColors.clear();
+      textInput.value = "";
+      commentInput.value = "";
+      datePresetSelect && (datePresetSelect.value = "all");
+      tagOpSelect.value = "OR";
+      colorOpSelect.value = "OR";
+      setTimeout(() => filterAnnotations(), 0);
+      return;
+    }
+  }
+
+  currentPage = 1;
+  renderBottomOptions();
+  renderAnnotations();
+  renderStats();
+}
+
+function renderAnnotations() {
+  annotationContainer.innerHTML = "";
+  const perRow = Math.min(3, parseInt(itemsPerRowInput.value, 10) || 1);
+  annotationContainer.style.gridTemplateColumns = `repeat(${perRow}, 1fr)`;
+  const perPage = parseInt(itemsPerPageSelect.value, 10) || 50;
+  const totalCount = combinedResults.length;
+  totalPages = Math.ceil(totalCount / perPage) || 1;
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+  const startIndex = (currentPage - 1) * perPage;
+  const endIndex = startIndex + perPage;
+  const pageResults = combinedResults.slice(startIndex, endIndex);
+  noResultsDiv.style.display = pageResults.length === 0 ? "block" : "none";
+  const textQueryRaw = textInput.value.trim();
+  const commentQueryRaw = commentInput.value.trim();
+  pageResults.forEach((a: any, idx: number) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "annotation-item";
+    if (selectedAnnotationIds.has(a.itemID)) {
+      (wrapper as any).style.boxShadow = "0 0 0 3px var(--secondary-color), 0 4px 12px rgba(0,0,0,0.12)";
+      (wrapper as any).style.transform = "scale(1.01)";
+      (wrapper as any).style.zIndex = 2;
+      (wrapper as any).style.background = "#f0f7ff";
+    } else {
+      (wrapper as any).style.boxShadow = "var(--box-shadow)";
+      (wrapper as any).style.transform = "none";
+      (wrapper as any).style.background = "white";
+      (wrapper as any).style.zIndex = 1;
+    }
+    if (a.uri) {
+      (wrapper as any).style.cursor = "pointer";
+      wrapper.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        window.location.assign(a.uri);
+      });
+    }
+    const header = document.createElement("div");
+    header.className = "annotation-header";
+    const colorIndicator = document.createElement("div");
+    colorIndicator.className = "annotation-color";
+    (colorIndicator as any).style.backgroundColor = a.color || "#ccc";
+    (colorIndicator as any).style.outline = selectedAnnotationIds.has(a.itemID) ? "3px solid var(--secondary-color)" : "none";
+    (colorIndicator as any).style.outlineOffset = "2px";
+    (colorIndicator as any).style.cursor = "pointer";
+    colorIndicator.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (selectedAnnotationIds.has(a.itemID)) selectedAnnotationIds.delete(a.itemID);
+      else selectedAnnotationIds.add(a.itemID);
+      renderAnnotations();
+    });
+    header.appendChild(colorIndicator);
+    wrapper.appendChild(header);
+
+    const textDiv = document.createElement("div");
+    textDiv.className = "annotation-text";
+    (textDiv as any).innerHTML = sanitizeHtml(a.text || "");
+    highlightInElement(textDiv, textQueryRaw);
+    wrapper.appendChild(textDiv);
+
+    if (a.comment) {
+      const commentDiv = document.createElement("div");
+      commentDiv.className = "annotation-comment";
+      (commentDiv as any).innerHTML = sanitizeHtml(a.comment);
+      highlightInElement(commentDiv, commentQueryRaw);
+      (commentDiv as any).style.borderLeft = `3px solid ${a.color || "var(--accent-color)"}`;
+      wrapper.appendChild(commentDiv);
+    }
+
+    if (a.tags && a.tags.length > 0) {
+      const tagsContainer = document.createElement("div");
+      tagsContainer.className = "annotation-tags";
+      (a.tags || "").split(',').map((t: string) => t.trim()).filter(Boolean).forEach((tag: string) => {
+        const tagElement = document.createElement("span");
+        tagElement.className = "annotation-tag";
+        (tagElement as any).textContent = tag;
+        const delBtn = document.createElement("span");
+        (delBtn as any).textContent = " ×";
+        (delBtn as any).style.color = "#c0392b";
+        (delBtn as any).style.cursor = "pointer";
+        (delBtn as any).style.marginLeft = "4px";
+        (delBtn as any).style.display = "none";
+        tagElement.addEventListener("mouseenter", () => { (delBtn as any).style.display = "inline"; });
+        tagElement.addEventListener("mouseleave", () => { (delBtn as any).style.display = "none"; });
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          removeTagFromAnnotation(a.itemID, tag, wrapper);
+        });
+        tagElement.appendChild(delBtn);
+        tagsContainer.appendChild(tagElement);
+      });
+      wrapper.appendChild(tagsContainer);
+    }
+
+    if (a.uri) {
+      const uriElement = document.createElement("div");
+      uriElement.className = "annotation-uri";
+      (uriElement as any).textContent = a.uri;
+      wrapper.appendChild(uriElement);
+    }
+
+    if (a.sourceTitle || a.dateAdded) {
+      const infoDiv = document.createElement("div");
+      infoDiv.className = "annotation-hover-info";
+      let infoText = "";
+      if (a.sourceTitle) infoText += `${a.sourceTitle}`;
+      if (a.dateAdded) {
+        const date = new Date(a.dateAdded);
+        const formatted = date.toLocaleString();
+        infoText += (a.sourceTitle ? ` | ${formatted}` : formatted);
+      }
+      (infoDiv as any).textContent = infoText;
+      wrapper.appendChild(infoDiv);
+    }
+
+    if (idx === 0) {
+      const selectAllBtn = document.createElement("button");
+      selectAllBtn.className = "select-all-btn";
+      const allSelected = pageResults.every((item: any) => selectedAnnotationIds.has(item.itemID));
+      (selectAllBtn as any).textContent = allSelected ? (LOCALE === 'zh-CN' ? '全不选' : 'Deselect All') : (LOCALE === 'zh-CN' ? '全选' : 'Select All');
+      (selectAllBtn as any).style.position = "absolute";
+      (selectAllBtn as any).style.right = "16px";
+      (selectAllBtn as any).style.bottom = "12px";
+      (selectAllBtn as any).style.display = "none";
+      (selectAllBtn as any).style.zIndex = 10;
+      (selectAllBtn as any).style.padding = "6px 16px";
+      (selectAllBtn as any).style.borderRadius = "6px";
+      (selectAllBtn as any).style.background = "var(--secondary-color)";
+      (selectAllBtn as any).style.color = "#fff";
+      (selectAllBtn as any).style.border = "none";
+      (selectAllBtn as any).style.fontWeight = "600";
+      (selectAllBtn as any).style.cursor = "pointer";
+      selectAllBtn.addEventListener("mouseenter", () => {
+        (selectAllBtn as any).style.display = "block";
+      });
+      selectAllBtn.addEventListener("mouseleave", () => {
+        (selectAllBtn as any).style.display = "none";
+      });
+      selectAllBtn.addEventListener("click", () => {
+        const allSelectedNow = pageResults.every((item: any) => selectedAnnotationIds.has(item.itemID));
+        if (allSelectedNow) pageResults.forEach((item: any) => selectedAnnotationIds.delete(item.itemID));
+        else pageResults.forEach((item: any) => selectedAnnotationIds.add(item.itemID));
+        renderAnnotations();
+      });
+      wrapper.addEventListener("mousemove", (e) => {
+        const rect = (wrapper as any).getBoundingClientRect();
+        const x = (e as any).clientX - rect.left;
+        const y = (e as any).clientY - rect.top;
+        const btnRect = { left: (wrapper as any).offsetWidth - 120, top: (wrapper as any).offsetHeight - 40, right: (wrapper as any).offsetWidth, bottom: (wrapper as any).offsetHeight };
+        if (x >= btnRect.left && x <= btnRect.right && y >= btnRect.top && y <= btnRect.bottom) (selectAllBtn as any).style.display = "block";
+        else (selectAllBtn as any).style.display = "none";
+      });
+      wrapper.addEventListener("mouseleave", () => { (selectAllBtn as any).style.display = "none"; });
+      wrapper.appendChild(selectAllBtn);
+    }
+
+    annotationContainer.appendChild(wrapper);
+  });
+
+  const count = combinedResults.length;
+  if (LOCALE === "zh-CN") displayCountDiv.textContent = getString("displayCountZH").replace("{count}", count);
+  else displayCountDiv.textContent = getString("displayCountEN").replace("{count}", count);
+  prevPageButton.disabled = currentPage <= 1;
+  nextPageButton.disabled = currentPage >= totalPages;
+  const infoTemplate = getString("pageInfo");
+  pageInfoSpan.textContent = infoTemplate.replace("{current}", currentPage).replace("{total}", totalPages);
+}
+
+function renderBottomOptions() {
+  tagsListContainer.innerHTML = "";
+  colorsListContainer.innerHTML = "";
+  const hasTagFilters = selectedTags.size > 0;
+  const hasColorFilters = selectedColors.size > 0;
+  const colorsBase = textResults.filter((a) => {
+    if (!hasTagFilters) return true;
+    const arr = (a.tags||"").split(",").map((t: string)=>t.trim()).filter(Boolean);
+    if (tagOpSelect.value === "NOT") {
+      if ((selectedTags as any).has("__NO_TAG__")) return arr.length > 0;
+      return arr.every((t)=>!(selectedTags as any).has(t));
+    }
+    if (tagOpSelect.value === "AND") return Array.from(selectedTags).every((t:any)=>arr.includes(t as any));
+    if ((selectedTags as any).has("__NO_TAG__")) return arr.length===0;
+    return Array.from(selectedTags).some((t:any)=>arr.includes(t as any));
+  });
+  const tagsBase = textResults.filter((a) => {
+    if (!hasColorFilters) return true;
+    if (colorOpSelect.value === "NOT") return !(selectedColors as any).has(a.color);
+    if (colorOpSelect.value === "AND") return selectedColors.size === 1 && (selectedColors as any).has(a.color);
+    return (selectedColors as any).has(a.color);
+  });
+  const colorSource = colorOpSelect.value === "OR" ? colorsBase : combinedResults;
+  const tagSource   = tagOpSelect.value   === "OR" ? tagsBase   : combinedResults;
+  const colorsSet = new Set(colorSource.map((a:any)=>a.color).filter(Boolean));
+  const tagsSet   = new Set<string>();
+  tagSource.forEach((a:any)=>{ (a.tags||"").split(",").map((t:string)=>t.trim()).filter(Boolean).forEach((t:string)=>tagsSet.add(t)); });
+  const noTagValue = "__NO_TAG__";
+  if (!(tagOpSelect.value === "NOT" && (selectedTags as any).has(noTagValue))) {
+    const noTagEl = document.createElement("span");
+    noTagEl.className = "tag-item";
+    (noTagEl as any).textContent = getString("noTag");
+    if (tagOpSelect.value !== "NOT" && (selectedTags as any).has(noTagValue)) noTagEl.classList.add("selected");
+    noTagEl.addEventListener("click", () => {
+      if ((selectedTags as any).has(noTagValue)) (selectedTags as any).delete(noTagValue);
+      else (selectedTags as any).add(noTagValue);
+      filterAnnotations();
+    });
+    tagsListContainer.appendChild(noTagEl);
+  }
+  Array.from(tagsSet).sort((a:any,b:any)=>String(a).localeCompare(String(b),"zh-CN")).forEach((tag:any) => {
+    if (tagOpSelect.value === "NOT" && (selectedTags as any).has(tag)) return;
+    const tagEl = document.createElement("span");
+    tagEl.className = "tag-item";
+    (tagEl as any).textContent = tag;
+    if ((selectedTags as any).has(tag)) tagEl.classList.add("selected");
+    tagEl.addEventListener("click", () => {
+      if ((selectedTags as any).has(tag)) (selectedTags as any).delete(tag);
+      else (selectedTags as any).add(tag);
+      filterAnnotations();
+    });
+    tagsListContainer.appendChild(tagEl);
+  });
+  Array.from(colorsSet).sort().forEach((col:any) => {
+    if (colorOpSelect.value === "NOT" && (selectedColors as any).has(col)) return;
+    const colEl = document.createElement("div");
+    colEl.className = "color-item";
+    (colEl as any).style.backgroundColor = col;
+    if ((selectedColors as any).has(col)) colEl.classList.add("selected");
+    colEl.addEventListener("click", () => {
+      if ((selectedColors as any).has(col)) (selectedColors as any).delete(col);
+      else (selectedColors as any).add(col);
+      filterAnnotations();
+    });
+    colorsListContainer.appendChild(colEl);
+  });
+}
+
+function renderCollectionsTree() {
+  if (!collectionsTreeEl) return;
+  const paths = new Set<string>();
+  (annotations || []).forEach((a:any) => {
+    (Array.isArray(a.collectionPaths) ? a.collectionPaths : []).forEach((p:any) => { if (p) paths.add(p); });
+  });
+  const root:any = { name: '', path: '', children: new Map() };
+  Array.from(paths).forEach((p:any) => {
+    const segs = String(p).split(' / ').filter(Boolean);
+    let cursor = root;
+    let acc = '';
+    segs.forEach((seg, idx) => {
+      acc = idx === 0 ? seg : acc + ' / ' + seg;
+      if (!cursor.children.has(seg)) cursor.children.set(seg, { name: seg, path: acc, children: new Map() });
+      cursor = cursor.children.get(seg);
+    });
+  });
+  collectionsTreeEl.innerHTML = '';
+  const ul = document.createElement('ul');
+  collectionsTreeEl.appendChild(ul);
+  function renderNodeMap(map:any, parentUL: any) {
+    Array.from(map.keys()).sort((a:any,b:any)=>String(a).localeCompare(String(b),'zh-CN')).forEach((key:any) => {
+      const node = map.get(key);
+      const li = document.createElement('li');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      (cb as any).dataset.path = node.path;
+      (cb as any).checked = selectedCollectionPaths.has(node.path);
+      cb.addEventListener('change', () => {
+        const checked = (cb as any).checked;
+        toggleDescendants(li, checked);
+        updateAncestors(li);
+        updateCollectionsTriggerLabel();
+        filterAnnotations();
+      });
+      const label = document.createElement('span');
+      label.className = 'node-label';
+      (label as any).textContent = node.name;
+      li.appendChild(cb);
+      li.appendChild(label);
+      if (node.children.size > 0) {
+        const childUL = document.createElement('ul');
+        renderNodeMap(node.children, childUL);
+        li.appendChild(childUL);
+      }
+      parentUL.appendChild(li);
+    });
+  }
+  renderNodeMap(root.children, ul);
+
+  function toggleDescendants(li:any, checked:boolean) {
+    const cb = li.querySelector('input[type="checkbox"]') as any;
+    if (cb && cb.dataset.path) {
+      if (checked) selectedCollectionPaths.add(cb.dataset.path);
+      else selectedCollectionPaths.delete(cb.dataset.path);
+      cb.checked = checked;
+      cb.indeterminate = false;
+    }
+    const childCBs = li.querySelectorAll('ul input[type="checkbox"]') as any;
+    childCBs.forEach((c:any) => {
+      const path = c.dataset.path;
+      c.checked = checked;
+      c.indeterminate = false;
+      if (path) {
+        if (checked) selectedCollectionPaths.add(path);
+        else selectedCollectionPaths.delete(path);
+      }
+    });
+  }
+
+  function updateAncestors(li:any) {
+    let parent = li.parentElement;
+    while (parent && parent !== collectionsTreeEl) {
+      if (parent.tagName.toLowerCase() === 'ul') {
+        const pli = parent.parentElement as any;
+        if (pli && pli.tagName.toLowerCase() === 'li') {
+          const checks = parent.querySelectorAll(':scope > li > input[type="checkbox"]') as any;
+          let allChecked = true, anyChecked = false;
+          checks.forEach((c:any) => {
+            if (c.checked) anyChecked = true; else allChecked = false;
+            if (c.indeterminate) { anyChecked = true; allChecked = false; }
+          });
+          const pcb = pli.querySelector(':scope > input[type="checkbox"]') as any;
+          if (pcb) {
+            if (allChecked) { pcb.checked = true; pcb.indeterminate = false; }
+            else if (anyChecked) { pcb.checked = false; pcb.indeterminate = true; }
+            else { pcb.checked = false; pcb.indeterminate = false; }
+            const path = pcb.dataset.path;
+            if (path) {
+              if (pcb.checked) selectedCollectionPaths.add(path);
+              else selectedCollectionPaths.delete(path);
+            }
+          }
+          parent = pli.parentElement;
+          continue;
+        }
+      }
+      parent = parent.parentElement;
+    }
+  }
+}
+
+function toggleCollectionsPanel(show?: boolean) {
+  if (!collectionsPanel) return;
+  const target = (typeof show === 'boolean') ? show : (collectionsPanel.style.display !== 'block');
+  collectionsPanel.style.display = target ? 'block' : 'none';
+}
+function updateCollectionsTriggerLabel() {
+  if (!collectionsTrigger) return;
+  if (selectedCollectionPaths.size === 0) {
+    (collectionsTrigger as any).textContent = getString('collectionAll');
+    return;
+  }
+  const arr = Array.from(selectedCollectionPaths).sort((a:any,b:any)=>String(a).localeCompare(String(b),'zh-CN'));
+  if (arr.length <= 2) (collectionsTrigger as any).textContent = (arr as any).join(', ');
+  else (collectionsTrigger as any).textContent = (arr as any)[0] + ` +${(arr as any).length - 1}`;
+}
+collectionsTrigger && collectionsTrigger.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleCollectionsPanel();
+});
+document.addEventListener('click', (e) => {
+  if (!collectionsPanel) return;
+  if (collectionsPanel.style.display !== 'block') return;
+  const within = collectionsPanel.contains(e.target as any) || collectionsTrigger.contains(e.target as any);
+  if (!within) toggleCollectionsPanel(false);
+});
+
+function renderHistogram(container:any, data:any, isColor = false) {
+  container.innerHTML = "";
+  if (Object.keys(data).length === 0) {
+    container.innerHTML = '<div class="no-data">' + getString('noData') + '</div>';
+    return;
+  }
+  const keys = Object.keys(data);
+  const maxVal = Math.max(...Object.values(data) as any);
+  keys.sort((a:any, b:any) => (data[b] - data[a]) || a.localeCompare(b, 'zh-CN'));
+  keys.forEach((key:any) => {
+    const val = (data as any)[key];
+    const row = document.createElement('div');
+    row.className = 'histogram-row';
+    const labelSection = document.createElement('div');
+    labelSection.className = 'label-section';
+    if (isColor) {
+      const swatch = document.createElement('div');
+      swatch.className = 'color-swatch';
+      (swatch as any).style.backgroundColor = key;
+      labelSection.appendChild(swatch);
+    }
+    const labelText = document.createElement('span');
+    labelText.className = 'label-text';
+    (labelText as any).textContent = key;
+    labelSection.appendChild(labelText);
+    row.appendChild(labelSection);
+    const barContainer = document.createElement('div');
+    barContainer.className = 'bar-container';
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    (bar as any).style.backgroundColor = isColor ? key : '#5c6bc0';
+    (bar as any).style.width = `${(val / maxVal) * 100}%`;
+    barContainer.appendChild(bar);
+    row.appendChild(barContainer);
+    const count = document.createElement('div');
+    count.className = 'count';
+    (count as any).textContent = val;
+    row.appendChild(count);
+    container.appendChild(row);
+  });
+}
+
+function renderStats() {
+  const colorCounts:any = {};
+  const tagCounts:any = {};
+  combinedResults.forEach((a:any) => {
+    if (a.color) colorCounts[a.color] = (colorCounts[a.color] || 0) + 1;
+    (a.tags || "").split(',').map((t:string) => t.trim()).filter(Boolean).forEach((t:string) => {
+      tagCounts[t] = (tagCounts[t] || 0) + 1;
+    });
+  });
+  const colorHist = document.getElementById('color-histogram') as any;
+  renderHistogram(colorHist, colorCounts, true);
+  const tagHist = document.getElementById('tag-histogram') as any;
+  renderHistogram(tagHist, tagCounts, false);
+}
+
+async function removeTagFromAnnotation(itemID:number, tagToRemove:string, wrapper:any) {
+  try {
+    const item = await (window as any).parent.Zotero.Items.get(itemID);
+    if (!item) throw new Error("未找到 itemID=" + itemID);
+    const existingTagObjs = item.getTags();
+    const existingTags = existingTagObjs.map((tObj:any) => tObj.tag);
+    const newTagNames = existingTags.filter((t:any) => t !== tagToRemove);
+    item.setTags(newTagNames.map((t:any) => ({ tag: t })));
+    await item.saveTx();
+    (window as any).parent.Zotero.Notifier.trigger("item", "modify", itemID);
+    const idx = annotations.findIndex((a:any) => a.itemID === itemID);
+    if (idx >= 0) {
+      (annotations as any)[idx].tags = newTagNames.join(",");
+    }
+    const tagsContainer = wrapper.querySelector(".annotation-tags") as any;
+    tagsContainer.querySelectorAll(".annotation-tag").forEach((el:any) => el.remove());
+    tagsContainer.querySelectorAll(".add-tag-wrapper").forEach((el:any) => el.remove());
+    newTagNames.forEach((t:any) => {
+      const tagEl = document.createElement("span");
+      tagEl.className = "annotation-tag";
+      (tagEl as any).textContent = t;
+      const delBtn = document.createElement("span");
+      (delBtn as any).textContent = " ×";
+      (delBtn as any).style.cursor = "pointer";
+      (delBtn as any).style.color = "#c0392b";
+      (delBtn as any).style.marginLeft = "4px";
+      (delBtn as any).style.display = "none";
+      tagEl.addEventListener("mouseenter", () => { (delBtn as any).style.display = "inline"; });
+      tagEl.addEventListener("mouseleave", () => { (delBtn as any).style.display = "none"; });
+      delBtn.addEventListener("click", (e:any) => { e.stopPropagation(); removeTagFromAnnotation(itemID, t, wrapper); });
+      tagEl.appendChild(delBtn);
+      tagsContainer.appendChild(tagEl);
+    });
+    filterAnnotations();
+  } catch (e) {
+    console.error("删除标签失败：", e);
+    alert("删除标签出错，请检查控制台错误信息。");
+  }
+}
+
+textInput.addEventListener("input", filterAnnotations);
+commentInput.addEventListener("input", filterAnnotations);
+itemsPerRowInput.addEventListener("change", renderAnnotations);
+itemsPerPageSelect.addEventListener("change", () => { currentPage = 1; renderAnnotations(); });
+datePresetSelect.addEventListener("change", filterAnnotations);
+tagOpSelect.addEventListener("change", () => { selectedTags.clear(); filterAnnotations(); });
+colorOpSelect.addEventListener("change", () => { selectedColors.clear(); filterAnnotations(); });
+prevPageButton.addEventListener("click", () => { if (currentPage > 1) { currentPage--; renderAnnotations(); } });
+nextPageButton.addEventListener("click", () => { if (currentPage < totalPages) { currentPage++; renderAnnotations(); } });
+
+const batchTagInput = document.getElementById("batch-tag-input") as any;
+const batchTagSuggestions = document.getElementById("batch-tag-suggestions") as any;
+const batchAddTagBtn = document.getElementById("batch-add-tag-btn") as any;
+
+function getCurrentTagSuggestions() {
+  const tagsSet = new Set<string>();
+  combinedResults.forEach((a:any) => {
+    (a.tags || "").split(',').map((t:string) => t.trim()).filter(Boolean).forEach((t:string) => tagsSet.add(t));
+  });
+  return Array.from(tagsSet).sort((a, b) => a.localeCompare(b, "zh-CN"));
+}
+function renderBatchTagSuggestions(filter = "") {
+  const suggestions = getCurrentTagSuggestions().filter((t:any) => t.includes(filter));
+  if (suggestions.length === 0) { (batchTagSuggestions as any).style.display = "none"; return; }
+  batchTagSuggestions.innerHTML = "";
+  suggestions.forEach((tag:any) => {
+    const item = document.createElement("div");
+    (item as any).textContent = tag;
+    (item as any).style.padding = "8px 12px";
+    (item as any).style.cursor = "pointer";
+    item.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      batchTagInput.value = tag;
+      (batchTagSuggestions as any).style.display = "none";
+    });
+    batchTagSuggestions.appendChild(item);
+  });
+  (batchTagSuggestions as any).style.display = "block";
+}
+batchTagInput.addEventListener("focus", () => { renderBatchTagSuggestions(batchTagInput.value.trim()); });
+batchTagInput.addEventListener("input", () => { renderBatchTagSuggestions(batchTagInput.value.trim()); });
+batchTagInput.addEventListener("blur", () => { setTimeout(() => { (batchTagSuggestions as any).style.display = "none"; }, 150); });
+batchAddTagBtn.addEventListener("click", async () => {
+  const tag = batchTagInput.value.trim();
+  if (!tag) { alert("请输入要添加的标签"); return; }
+  if (selectedAnnotationIds.size === 0) { alert("请先选中要添加标签的批注"); return; }
+  (batchAddTagBtn as any).disabled = true;
+  for (const itemID of selectedAnnotationIds) {
+    try {
+      const item = await (window as any).parent.Zotero.Items.get(itemID);
+      if (!item) continue;
+      const existingTagObjs = item.getTags();
+      const existingTags = existingTagObjs.map((tObj:any) => tObj.tag);
+      if (!existingTags.includes(tag)) {
+        existingTags.push(tag);
+        item.setTags(existingTags.map((t:any) => ({ tag: t })));
+        await item.saveTx();
+        (window as any).parent.Zotero.Notifier.trigger("item", "modify", itemID);
+        const idx = annotations.findIndex((a:any) => a.itemID === itemID);
+        if (idx >= 0) {
+          const arr = ((annotations as any)[idx].tags || "").split(',').map((t:string) => t.trim()).filter(Boolean);
+          if (!arr.includes(tag)) arr.push(tag);
+          (annotations as any)[idx].tags = arr.join(",");
+        }
+      }
+    } catch (e) { console.error("添加标签失败", itemID, e); }
+  }
+  (batchAddTagBtn as any).disabled = false;
+  batchTagInput.value = "";
+  selectedAnnotationIds.clear();
+  filterAnnotations();
+});
+
+
