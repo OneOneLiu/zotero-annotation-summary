@@ -67,6 +67,30 @@ export function openHelloZoteroTab(fileUri: string) {
     },
     container
   );
+
+  // —— 设置当前新建标签的图标 —— 
+  try {
+    const win = Zotero.getMainWindow();
+    const doc = win.document as any;
+    const iconUrl = `chrome://${config.addonName}/content/icons/favicon@0.5x.png`;
+    // 等一帧，等待 Tab DOM 完全渲染
+    setTimeout(() => {
+      try {
+        const iconEl: any =
+          doc.querySelector('.tab[aria-selected=\"true\"] .tab-icon') ||
+          doc.querySelector('.tab[selected=\"true\"] .tab-icon') ||
+          doc.querySelector('.tab[selected] .tab-icon') ||
+          doc.querySelector('.selected .tab-icon');
+        if (iconEl) {
+          // 同时设置 listStyleImage 与 backgroundImage 提高兼容性
+          try { iconEl.style.listStyleImage = `url(${iconUrl})`; } catch {}
+          try { iconEl.style.setProperty('background-image', `url(${iconUrl})`, 'important'); } catch {}
+          // 确保尺寸为 16x16
+          try { iconEl.style.width = '16px'; iconEl.style.height = '16px'; } catch {}
+        }
+      } catch {}
+    }, 0);
+  } catch {}
 }
 
 // —— 提取所有注释，结果写入临时文件，返回 file:// URI；发生错误时返回 null —— 
