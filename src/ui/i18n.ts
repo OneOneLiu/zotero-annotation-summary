@@ -7,7 +7,7 @@ export const LOCALE = (navigator.language || (window as any).userLanguage || 'zh
 
 const I18N = {
   'zh-CN': {
-    annotationSummaryTitle: 'Zotero 标注总结',
+    annotationSummaryTitle: '标注总结',
     searchLabelText: '标注文本搜索:',
     searchLabelComment: '评论搜索:',
     searchPlaceholderText: '搜索标注文字...',
@@ -37,12 +37,12 @@ const I18N = {
     recent30days: '最近一月',
     recent365days: '最近一年',
     displayCountZH: '共显示 {count} 条标注',
-    pageTitle: 'Zotero 标注总结',
+    pageTitle: 'Annotation Summary',
     batchTagInputPlaceholder: '输入标签',
     batchAddTagBtn: '添加标签',
   },
   'en-US': {
-    annotationSummaryTitle: 'Zotero Annotation Summary',
+    annotationSummaryTitle: 'Annotation Summary',
     searchLabelText: 'Annotation Text Search:',
     searchLabelComment: 'Comment Search:',
     searchPlaceholderText: 'Search annotation text...',
@@ -72,7 +72,7 @@ const I18N = {
     recent30days: 'Recent 1 Month',
     recent365days: 'Recent 1 Year',
     displayCountEN: 'Displaying {count} annotations',
-    pageTitle: 'Zotero Annotation Summary',
+    pageTitle: 'AnnotationSummary',
     batchTagInputPlaceholder: 'Enter tag',
     batchAddTagBtn: 'Add Tag',
   },
