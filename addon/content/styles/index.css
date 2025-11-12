@@ -159,11 +159,15 @@ h2 {
   box-shadow: 0 8px 20px rgba(0,0,0,0.12);
   width: 360px;
   max-width: 90vw;
+  max-height: 70vh;
+  overflow: hidden;
   display: none;
 }
 .collections-tree {
-  max-height: 220px;
+  max-height: 60vh;
   overflow: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   padding: 8px 10px;
   border: 1px solid var(--medium-gray);
   border-radius: var(--border-radius);
@@ -179,6 +183,11 @@ h2 {
 }
 .collections-tree .node-label {
   margin-left: 6px;
+  display: inline-block;
+  max-width: calc(100% - 28px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* 右上角定位容器 */
 .collections-top-right {
@@ -189,6 +198,27 @@ h2 {
 }
 .collections-top-right label { display: none; }
 .collections-top-right .collections-panel { right: 0; left: auto; }
+
+/* —— 可折叠的层级 —— */
+.collections-tree li.has-children > .node-label {
+  cursor: pointer;
+  user-select: none;
+  color: var(--primary-color);
+}
+.collections-tree li.has-children > .node-label::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 6px;
+  transform: rotate(90deg);
+  transition: transform 0.2s ease;
+  color: #7f8c8d;
+}
+.collections-tree li.has-children.collapsed > .node-label::before {
+  transform: rotate(0deg);
+}
+.collections-tree li.has-children.collapsed > ul {
+  display: none;
+}
 
 /* ---------- 注释容器 ---------- */
 #annotation-container {

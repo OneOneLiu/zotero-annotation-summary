@@ -530,12 +530,18 @@ function renderCollectionsTree() {
       const label = document.createElement('span');
       label.className = 'node-label';
       (label as any).textContent = node.name;
+      (label as any).title = node.path || node.name || '';
       li.appendChild(cb);
       li.appendChild(label);
       if (node.children.size > 0) {
+        li.classList.add('has-children');
         const childUL = document.createElement('ul');
         renderNodeMap(node.children, childUL);
         li.appendChild(childUL);
+        label.addEventListener('click', (e:any) => {
+          e.stopPropagation();
+          li.classList.toggle('collapsed');
+        });
       }
       parentUL.appendChild(li);
     });
