@@ -41,6 +41,26 @@ let selectedTags = new Set<string>();
 let selectedColors = new Set<string>();
 let selectedAnnotationIds = new Set<number>();
 
+(function setupGlobalColorMenuCloser(){
+  let bound = false;
+  function closeIfOpen(e?: any) {
+    const menu = document.querySelector('.color-menu') as any;
+    if (!menu) return;
+    if (e && (menu.contains(e.target) || (e.target && (e.target as any).closest('.annotation-color')))) return;
+    menu.parentNode && menu.parentNode.removeChild(menu);
+  }
+  if (!bound) {
+    bound = true;
+    document.addEventListener('click', closeIfOpen, true);
+    document.addEventListener('scroll', closeIfOpen, true);
+    window.addEventListener('blur', closeIfOpen);
+  }
+})();
+
+(function augmentStylesForContextMenu(){
+  // no-op placeholder in case we later need runtime style tweaks
+})();
+
 (async function initFromZoteroFile() {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -302,6 +322,11 @@ function renderAnnotations() {
       if (selectedAnnotationIds.has(a.itemID)) selectedAnnotationIds.delete(a.itemID);
       else selectedAnnotationIds.add(a.itemID);
       renderAnnotations();
+    });
+    colorIndicator.addEventListener("contextmenu", (e:any) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openColorMenuForAnnotation(header, a.itemID);
     });
     header.appendChild(colorIndicator);
     wrapper.appendChild(header);
@@ -795,5 +820,68 @@ batchAddTagBtn.addEventListener("click", async () => {
   selectedAnnotationIds.clear();
   filterAnnotations();
 });
+
+function getCurrentColorOptions() {
+  const colors = new Set<string>();
+  (combinedResults.length > 0 ? combinedResults : annotations).forEach((a:any) => {
+    if (a.color) colors.add(a.color);
+  });
+  return Array.from(colors);
+}
+
+async function changeAnnotationColor(itemID:number, newColor:string) {
+  try {
+    const item = await (window as any).parent.Zotero.Items.get(itemID);
+    if (!item) throw new Error("未找到 itemID=" + itemID);
+    (item as any).annotationColor = newColor;
+    await item.saveTx();
+    (window as any).parent.Zotero.Notifier.trigger("item", "modify", itemID);
+    const idx = annotations.findIndex((a:any) => a.itemID === itemID);
+    if (idx >= 0) {
+      (annotations as any)[idx].color = newColor;
+    }
+    filterAnnotations();
+  } catch (e) {
+    console.error("修改颜色失败：", e);
+    alert("修改颜色出错，请检查控制台错误信息。");
+  }
+}
+
+function openColorMenuForAnnotation(containerEl: HTMLElement, itemID: number) {
+  // 关闭已有菜单
+  const existed = containerEl.querySelector('.color-menu') as any;
+  if (existed && existed.parentNode) existed.parentNode.removeChild(existed);
+  const docMenu = document.querySelector('.color-menu') as any;
+  if (docMenu && docMenu.parentNode) docMenu.parentNode.removeChild(docMenu);
+
+  const menu = document.createElement('div');
+  menu.className = 'color-menu';
+
+  const colors = getCurrentColorOptions();
+  if (colors.length === 0) {
+    const none = document.createElement('div');
+    (none as any).textContent = LOCALE === 'zh-CN' ? '无可用颜色' : 'No colors';
+    (none as any).style.fontSize = '12px';
+    (none as any).style.color = '#888';
+    (none as any).style.padding = '4px 6px';
+    menu.appendChild(none);
+  } else {
+    colors.forEach((col:any) => {
+      const opt = document.createElement('div');
+      opt.className = 'color-option';
+      (opt as any).style.backgroundColor = col;
+      opt.addEventListener('mousedown', async (e:any) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await changeAnnotationColor(itemID, col);
+        menu.parentNode && menu.parentNode.removeChild(menu);
+      });
+      menu.appendChild(opt);
+    });
+  }
+
+  // 挂到 header 上，按 CSS 相对定位
+  containerEl.appendChild(menu);
+}
 
 

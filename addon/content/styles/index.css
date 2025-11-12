@@ -339,6 +339,7 @@ h2 {
   height: 16px;
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0,0,0,0.1);
 }
 
 .annotation-text {
@@ -719,6 +720,33 @@ h2 {
 mark.highlight {
   background: #fff59d;
   padding: 0 2px;
+}
+
+/* —— 注释颜色右键菜单 —— */
+.color-menu {
+  position: absolute;
+  top: 24px;
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--medium-gray);
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(6, 24px);
+  gap: 8px;
+}
+.color-menu .color-option {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  cursor: pointer;
+}
+.color-menu .color-option:hover {
+  transform: scale(1.12);
 }
 
 
