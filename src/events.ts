@@ -172,7 +172,7 @@ export async function extractAllAnnotations(): Promise<string | null> {
         pageLabel: fullItem.annotationPageLabel ?? "",
         pageIndex: pos.pageIndex ?? "",
         type: fullItem.annotationType ?? "",
-        tags: (fullItem.tags || []).map((t: any) => t.tag).join(", "),
+        tags: (fullItem.tags || []).map((t: any) => t.tag),
         dateAdded: fullItem.dateAdded ?? "",
         key,
         sourceTitle: title,

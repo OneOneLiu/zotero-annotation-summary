@@ -41,6 +41,26 @@ let selectedTags = new Set<string>();
 let selectedColors = new Set<string>();
 let selectedAnnotationIds = new Set<number>();
 
+(function ensureTagArrayHelper(){
+  // Normalize tag field which may be an array (preferred), a JSON stringified array,
+  // or a legacy comma-joined string.
+})();
+function asTagArray(tags:any): string[] {
+  if (Array.isArray(tags)) {
+    return (tags as any).filter((t:any) => typeof t === 'string' && t.trim() !== '').map((t:any) => t.trim());
+  }
+  if (tags == null) return [];
+  if (typeof tags === 'string' && tags.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(tags);
+      if (Array.isArray(parsed)) {
+        return (parsed as any).filter((t:any) => typeof t === 'string' && t.trim() !== '').map((t:any) => t.trim());
+      }
+    } catch {}
+  }
+  return String(tags).split(',').map((t:string) => t.trim()).filter(Boolean);
+}
+
 (function setupGlobalColorMenuCloser(){
   let bound = false;
   function closeIfOpen(e?: any) {
@@ -163,7 +183,7 @@ function filterAnnotations() {
   let colorsSource = textResults;
   if (hasTagFilters) {
     colorsSource = textResults.filter((a) => {
-      const arr = (a.tags || "").split(',').map((t: string) => t.trim()).filter(Boolean);
+      const arr = asTagArray(a.tags);
       if (tagOpSelect.value === "NOT") {
         if ((selectedTags as any).has("__NO_TAG__")) return arr.length > 0;
         return arr.every((t) => (selectedTags as any).has(t) === false);
@@ -187,7 +207,7 @@ function filterAnnotations() {
     if (!matchesCollection(a)) return false;
     let matchTag = true;
     if (hasTagFilters) {
-      const arr = (a.tags || "").split(',').map((t: string) => t.trim()).filter(Boolean);
+      const arr = asTagArray(a.tags);
       if (tagOpSelect.value === "NOT") {
         if ((selectedTags as any).has("__NO_TAG__")) {
           matchTag = arr.length > 0;
@@ -244,7 +264,7 @@ function filterAnnotations() {
     let allTags = new Set();
     let allColors = new Set();
     annotations.forEach(a => {
-      (a.tags || "").split(',').map((t: string) => t.trim()).filter(Boolean).forEach((t: any) => (allTags as any).add(t));
+      asTagArray(a.tags).forEach((t: any) => (allTags as any).add(t));
       if (a.color) (allColors as any).add(a.color);
     });
     let tagGone = Array.from(selectedTags).every((t: any) => !(allTags as any).has(t) && t !== "__NO_TAG__");
@@ -350,10 +370,11 @@ function renderAnnotations() {
       wrapper.appendChild(commentDiv);
     }
 
-    if (a.tags && a.tags.length > 0) {
+    const tagArr = asTagArray(a.tags);
+    if (tagArr.length > 0) {
       const tagsContainer = document.createElement("div");
       tagsContainer.className = "annotation-tags";
-      (a.tags || "").split(',').map((t: string) => t.trim()).filter(Boolean).forEach((tag: string) => {
+      tagArr.forEach((tag: string) => {
         const tagElement = document.createElement("span");
         tagElement.className = "annotation-tag";
         (tagElement as any).textContent = tag;
@@ -456,7 +477,7 @@ function renderBottomOptions() {
   const hasColorFilters = selectedColors.size > 0;
   const colorsBase = textResults.filter((a) => {
     if (!hasTagFilters) return true;
-    const arr = (a.tags||"").split(",").map((t: string)=>t.trim()).filter(Boolean);
+    const arr = asTagArray(a.tags);
     if (tagOpSelect.value === "NOT") {
       if ((selectedTags as any).has("__NO_TAG__")) return arr.length > 0;
       return arr.every((t)=>!(selectedTags as any).has(t));
@@ -475,7 +496,7 @@ function renderBottomOptions() {
   const tagSource   = tagOpSelect.value   === "OR" ? tagsBase   : combinedResults;
   const colorsSet = new Set(colorSource.map((a:any)=>a.color).filter(Boolean));
   const tagsSet   = new Set<string>();
-  tagSource.forEach((a:any)=>{ (a.tags||"").split(",").map((t:string)=>t.trim()).filter(Boolean).forEach((t:string)=>tagsSet.add(t)); });
+  tagSource.forEach((a:any)=>{ asTagArray(a.tags).forEach((t:string)=>tagsSet.add(t)); });
   const noTagValue = "__NO_TAG__";
   if (!(tagOpSelect.value === "NOT" && (selectedTags as any).has(noTagValue))) {
     const noTagEl = document.createElement("span");
@@ -698,7 +719,7 @@ function renderStats() {
   const tagCounts:any = {};
   combinedResults.forEach((a:any) => {
     if (a.color) colorCounts[a.color] = (colorCounts[a.color] || 0) + 1;
-    (a.tags || "").split(',').map((t:string) => t.trim()).filter(Boolean).forEach((t:string) => {
+    asTagArray(a.tags).forEach((t:string) => {
       tagCounts[t] = (tagCounts[t] || 0) + 1;
     });
   });
@@ -720,7 +741,7 @@ async function removeTagFromAnnotation(itemID:number, tagToRemove:string, wrappe
     (window as any).parent.Zotero.Notifier.trigger("item", "modify", itemID);
     const idx = annotations.findIndex((a:any) => a.itemID === itemID);
     if (idx >= 0) {
-      (annotations as any)[idx].tags = newTagNames.join(",");
+      (annotations as any)[idx].tags = newTagNames;
     }
     const tagsContainer = wrapper.querySelector(".annotation-tags") as any;
     tagsContainer.querySelectorAll(".annotation-tag").forEach((el:any) => el.remove());
@@ -765,7 +786,7 @@ const batchAddTagBtn = document.getElementById("batch-add-tag-btn") as any;
 function getCurrentTagSuggestions() {
   const tagsSet = new Set<string>();
   combinedResults.forEach((a:any) => {
-    (a.tags || "").split(',').map((t:string) => t.trim()).filter(Boolean).forEach((t:string) => tagsSet.add(t));
+    asTagArray(a.tags).forEach((t:string) => tagsSet.add(t));
   });
   return Array.from(tagsSet).sort((a, b) => a.localeCompare(b, "zh-CN"));
 }
@@ -808,9 +829,10 @@ batchAddTagBtn.addEventListener("click", async () => {
         (window as any).parent.Zotero.Notifier.trigger("item", "modify", itemID);
         const idx = annotations.findIndex((a:any) => a.itemID === itemID);
         if (idx >= 0) {
-          const arr = ((annotations as any)[idx].tags || "").split(',').map((t:string) => t.trim()).filter(Boolean);
+          const current = (annotations as any)[idx].tags;
+          const arr = Array.isArray(current) ? [...current] : asTagArray(current);
           if (!arr.includes(tag)) arr.push(tag);
-          (annotations as any)[idx].tags = arr.join(",");
+          (annotations as any)[idx].tags = arr;
         }
       }
     } catch (e) { console.error("添加标签失败", itemID, e); }
@@ -822,11 +844,17 @@ batchAddTagBtn.addEventListener("click", async () => {
 });
 
 function getCurrentColorOptions() {
-  const colors = new Set<string>();
-  (combinedResults.length > 0 ? combinedResults : annotations).forEach((a:any) => {
-    if (a.color) colors.add(a.color);
+  const counts: Record<string, number> = {};
+  (annotations).forEach((a:any) => {
+    const c = a.color;
+    if (!c) return;
+    counts[c] = (counts[c] || 0) + 1;
   });
-  return Array.from(colors);
+  const sorted = Object.keys(counts).sort((a, b) => {
+    if (counts[b] !== counts[a]) return counts[b] - counts[a];
+    return String(a).localeCompare(String(b), 'zh-CN');
+  });
+  return sorted.slice(0, 20);
 }
 
 async function changeAnnotationColor(itemID:number, newColor:string) {
