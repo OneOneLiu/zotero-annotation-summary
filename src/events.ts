@@ -95,11 +95,12 @@ export function openHelloZoteroTab(fileUri: string) {
 
 // —— 提取所有注释，结果写入临时文件，返回 file:// URI；发生错误时返回 null —— 
 export async function extractAllAnnotations(): Promise<string | null> {
-  const libs = await Zotero.Libraries.getAll();
-  const userLib = libs.find((lib) => lib.libraryType === "user");
-  if (!userLib) return null;
+  const ZoteroPane = Zotero.getActiveZoteroPane();
+  if (!ZoteroPane) return null;
+  const libraryID = ZoteroPane.getSelectedLibraryID();
+  if (!libraryID) return null;
 
-  const items = await Zotero.Items.getAll(userLib.libraryID);
+  const items = await Zotero.Items.getAll(libraryID);
   const annotations = items.filter((i) => i.isAnnotation && i.isAnnotation());
   if (annotations.length === 0) return null;
 
