@@ -41,27 +41,27 @@ let selectedTags = new Set<string>();
 let selectedColors = new Set<string>();
 let selectedAnnotationIds = new Set<number>();
 
-(function ensureTagArrayHelper(){
+(function ensureTagArrayHelper() {
   // Normalize tag field which may be an array (preferred), a JSON stringified array,
   // or a legacy comma-joined string.
 })();
-function asTagArray(tags:any): string[] {
+function asTagArray(tags: any): string[] {
   if (Array.isArray(tags)) {
-    return (tags as any).filter((t:any) => typeof t === 'string' && t.trim() !== '').map((t:any) => t.trim());
+    return (tags as any).filter((t: any) => typeof t === 'string' && t.trim() !== '').map((t: any) => t.trim());
   }
   if (tags == null) return [];
   if (typeof tags === 'string' && tags.trim().startsWith('[')) {
     try {
       const parsed = JSON.parse(tags);
       if (Array.isArray(parsed)) {
-        return (parsed as any).filter((t:any) => typeof t === 'string' && t.trim() !== '').map((t:any) => t.trim());
+        return (parsed as any).filter((t: any) => typeof t === 'string' && t.trim() !== '').map((t: any) => t.trim());
       }
-    } catch {}
+    } catch { }
   }
-  return String(tags).split(',').map((t:string) => t.trim()).filter(Boolean);
+  return String(tags).split(',').map((t: string) => t.trim()).filter(Boolean);
 }
 
-(function setupGlobalColorMenuCloser(){
+(function setupGlobalColorMenuCloser() {
   let bound = false;
   function closeIfOpen(e?: any) {
     const menu = document.querySelector('.color-menu') as any;
@@ -77,53 +77,98 @@ function asTagArray(tags:any): string[] {
   }
 })();
 
-(function augmentStylesForContextMenu(){
+(function augmentStylesForContextMenu() {
   // no-op placeholder in case we later need runtime style tweaks
 })();
 
-(async function initFromZoteroFile() {
+// —— 刷新按钮逻辑 ——
+const refreshBtn = document.getElementById("refresh-btn");
+const refreshBtnText = document.getElementById("refresh-btn-text");
+
+if (refreshBtn && refreshBtnText) {
+  refreshBtn.addEventListener("click", async () => {
+    try {
+      const parentZotero = (window as any).parent?.Zotero;
+      if (parentZotero && parentZotero.AnnotationSummary && parentZotero.AnnotationSummary.extractAllAnnotations) {
+
+        const originalText = refreshBtnText.textContent;
+        refreshBtnText.textContent = "Loading...";
+        (refreshBtn as any).disabled = true;
+
+        const newUri = await parentZotero.AnnotationSummary.extractAllAnnotations();
+        if (newUri) {
+          await loadAnnotations(newUri);
+        }
+
+        refreshBtnText.textContent = originalText;
+        (refreshBtn as any).disabled = false;
+      } else {
+        console.error("无法调用 extractAllAnnotations");
+      }
+    } catch (e) {
+      console.error("刷新失败", e);
+      refreshBtnText.textContent = "Error";
+      setTimeout(() => {
+        if (refreshBtnText) {
+          refreshBtnText.textContent = getString('refreshBtn');
+          if (refreshBtn) (refreshBtn as any).disabled = false;
+        }
+      }, 2000);
+    }
+  });
+}
+
+async function loadAnnotations(fileUri?: string) {
   try {
-    const params = new URLSearchParams(window.location.search);
-    const encodedFile = params.get("file");
-    if (encodedFile) {
-      console.log("index.html: 找到 file 参数，准备从临时文件读取…", encodedFile);
+    if (!fileUri) {
+      const params = new URLSearchParams(window.location.search);
+      fileUri = params.get("file") ? decodeURIComponent(params.get("file")!) : undefined;
+    }
+
+    if (fileUri) {
+      console.log("loadAnnotations: 读取文件", fileUri);
       const parentZotero = (window as any).parent?.Zotero;
       if (!parentZotero) {
-        console.warn("index.html: window.parent.Zotero 未定义，无法通过 Zotero API 读取");
-      } else {
-        const fileUri = decodeURIComponent(encodedFile);
-        console.log("index.html: 解码后 fileUri =", fileUri);
-        try {
-          const ioService = (window as any).Components.classes["@mozilla.org/network/io-service;1"]
-            .getService((window as any).Components.interfaces.nsIIOService);
-          const fileURL = ioService.newURI(fileUri, null, null)
-            .QueryInterface((window as any).Components.interfaces.nsIFileURL);
-          const nsIFile = fileURL.file;
-          const jsonStr = await parentZotero.File.getContents(nsIFile);
-          if (jsonStr) {
-            const data = JSON.parse(jsonStr);
-            if (Array.isArray(data)) {
-              annotations = data;
-              console.log("index.html: 已从临时文件加载注释，共", annotations.length, "条");
-              renderCollectionsTree();
-              updateCollectionsTriggerLabel();
-              filterAnnotations();
-              return;
-            }
+        console.warn("window.parent.Zotero 未定义");
+        return;
+      }
+
+      try {
+        // 使用 Zotero.File.getContents 读取文件
+        // 需先构造 nsIFile
+        const ioService = (window as any).Components.classes["@mozilla.org/network/io-service;1"]
+          .getService((window as any).Components.interfaces.nsIIOService);
+        const fileURL = ioService.newURI(fileUri, null, null)
+          .QueryInterface((window as any).Components.interfaces.nsIFileURL);
+        const nsIFile = fileURL.file;
+
+        const jsonStr = await parentZotero.File.getContents(nsIFile);
+        if (jsonStr) {
+          const data = JSON.parse(jsonStr);
+          if (Array.isArray(data)) {
+            annotations = data;
+            console.log("已加载注释，共", annotations.length, "条");
+            renderCollectionsTree();
+            updateCollectionsTriggerLabel();
+            filterAnnotations();
+            return;
           }
-        } catch (e) {
-          console.error("index.html: 通过 Zotero API 读取临时文件时出错：", e);
         }
+      } catch (e) {
+        console.error("读取临时文件出错：", e);
       }
     }
   } catch (e) {
-    console.error("index.html: initFromZoteroFile 异常：", e);
+    console.error("loadAnnotations 异常：", e);
   }
-  console.log("index.html: 未通过 URL 参数成功加载或无参数，执行初始渲染。");
+  // Fallback: 如果没有加载到数据或出错，仍执行一次渲染（可能是空状态）
   renderCollectionsTree();
   updateCollectionsTriggerLabel();
   filterAnnotations();
-})();
+}
+
+// 启动时自动加载
+loadAnnotations();
 
 function filterAnnotations() {
   const presetVal = datePresetSelect.value;
@@ -294,9 +339,9 @@ function renderAnnotations() {
   annotationContainer.style.gridTemplateColumns = `repeat(${perRow}, 1fr)`;
   // 标记当前每行列数，供样式控制悬停信息开关
   try {
-    (annotationContainer as any).classList.remove('per-1','per-2','per-3');
+    (annotationContainer as any).classList.remove('per-1', 'per-2', 'per-3');
     (annotationContainer as any).classList.add(`per-${perRow}`);
-  } catch {}
+  } catch { }
   const perPage = parseInt(itemsPerPageSelect.value, 10) || 50;
   const totalCount = combinedResults.length;
   totalPages = Math.ceil(totalCount / perPage) || 1;
@@ -343,7 +388,7 @@ function renderAnnotations() {
       else selectedAnnotationIds.add(a.itemID);
       renderAnnotations();
     });
-    colorIndicator.addEventListener("contextmenu", (e:any) => {
+    colorIndicator.addEventListener("contextmenu", (e: any) => {
       e.preventDefault();
       e.stopPropagation();
       openColorMenuForAnnotation(header, a.itemID);
@@ -480,11 +525,11 @@ function renderBottomOptions() {
     const arr = asTagArray(a.tags);
     if (tagOpSelect.value === "NOT") {
       if ((selectedTags as any).has("__NO_TAG__")) return arr.length > 0;
-      return arr.every((t)=>!(selectedTags as any).has(t));
+      return arr.every((t) => !(selectedTags as any).has(t));
     }
-    if (tagOpSelect.value === "AND") return Array.from(selectedTags).every((t:any)=>arr.includes(t as any));
-    if ((selectedTags as any).has("__NO_TAG__")) return arr.length===0;
-    return Array.from(selectedTags).some((t:any)=>arr.includes(t as any));
+    if (tagOpSelect.value === "AND") return Array.from(selectedTags).every((t: any) => arr.includes(t as any));
+    if ((selectedTags as any).has("__NO_TAG__")) return arr.length === 0;
+    return Array.from(selectedTags).some((t: any) => arr.includes(t as any));
   });
   const tagsBase = textResults.filter((a) => {
     if (!hasColorFilters) return true;
@@ -493,10 +538,10 @@ function renderBottomOptions() {
     return (selectedColors as any).has(a.color);
   });
   const colorSource = colorOpSelect.value === "OR" ? colorsBase : combinedResults;
-  const tagSource   = tagOpSelect.value   === "OR" ? tagsBase   : combinedResults;
-  const colorsSet = new Set(colorSource.map((a:any)=>a.color).filter(Boolean));
-  const tagsSet   = new Set<string>();
-  tagSource.forEach((a:any)=>{ asTagArray(a.tags).forEach((t:string)=>tagsSet.add(t)); });
+  const tagSource = tagOpSelect.value === "OR" ? tagsBase : combinedResults;
+  const colorsSet = new Set(colorSource.map((a: any) => a.color).filter(Boolean));
+  const tagsSet = new Set<string>();
+  tagSource.forEach((a: any) => { asTagArray(a.tags).forEach((t: string) => tagsSet.add(t)); });
   const noTagValue = "__NO_TAG__";
   if (!(tagOpSelect.value === "NOT" && (selectedTags as any).has(noTagValue))) {
     const noTagEl = document.createElement("span");
@@ -510,7 +555,7 @@ function renderBottomOptions() {
     });
     tagsListContainer.appendChild(noTagEl);
   }
-  Array.from(tagsSet).sort((a:any,b:any)=>String(a).localeCompare(String(b),"zh-CN")).forEach((tag:any) => {
+  Array.from(tagsSet).sort((a: any, b: any) => String(a).localeCompare(String(b), "zh-CN")).forEach((tag: any) => {
     if (tagOpSelect.value === "NOT" && (selectedTags as any).has(tag)) return;
     const tagEl = document.createElement("span");
     tagEl.className = "tag-item";
@@ -523,7 +568,7 @@ function renderBottomOptions() {
     });
     tagsListContainer.appendChild(tagEl);
   });
-  Array.from(colorsSet).sort().forEach((col:any) => {
+  Array.from(colorsSet).sort().forEach((col: any) => {
     if (colorOpSelect.value === "NOT" && (selectedColors as any).has(col)) return;
     const colEl = document.createElement("div");
     colEl.className = "color-item";
@@ -541,11 +586,11 @@ function renderBottomOptions() {
 function renderCollectionsTree() {
   if (!collectionsTreeEl) return;
   const paths = new Set<string>();
-  (annotations || []).forEach((a:any) => {
-    (Array.isArray(a.collectionPaths) ? a.collectionPaths : []).forEach((p:any) => { if (p) paths.add(p); });
+  (annotations || []).forEach((a: any) => {
+    (Array.isArray(a.collectionPaths) ? a.collectionPaths : []).forEach((p: any) => { if (p) paths.add(p); });
   });
-  const root:any = { name: '', path: '', children: new Map() };
-  Array.from(paths).forEach((p:any) => {
+  const root: any = { name: '', path: '', children: new Map() };
+  Array.from(paths).forEach((p: any) => {
     const segs = String(p).split(' / ').filter(Boolean);
     let cursor = root;
     let acc = '';
@@ -558,8 +603,8 @@ function renderCollectionsTree() {
   collectionsTreeEl.innerHTML = '';
   const ul = document.createElement('ul');
   collectionsTreeEl.appendChild(ul);
-  function renderNodeMap(map:any, parentUL: any) {
-    Array.from(map.keys()).sort((a:any,b:any)=>String(a).localeCompare(String(b),'zh-CN')).forEach((key:any) => {
+  function renderNodeMap(map: any, parentUL: any) {
+    Array.from(map.keys()).sort((a: any, b: any) => String(a).localeCompare(String(b), 'zh-CN')).forEach((key: any) => {
       const node = map.get(key);
       const li = document.createElement('li');
       const cb = document.createElement('input');
@@ -584,7 +629,7 @@ function renderCollectionsTree() {
         const childUL = document.createElement('ul');
         renderNodeMap(node.children, childUL);
         li.appendChild(childUL);
-        label.addEventListener('click', (e:any) => {
+        label.addEventListener('click', (e: any) => {
           e.stopPropagation();
           li.classList.toggle('collapsed');
         });
@@ -594,7 +639,7 @@ function renderCollectionsTree() {
   }
   renderNodeMap(root.children, ul);
 
-  function toggleDescendants(li:any, checked:boolean) {
+  function toggleDescendants(li: any, checked: boolean) {
     const cb = li.querySelector('input[type="checkbox"]') as any;
     if (cb && cb.dataset.path) {
       if (checked) selectedCollectionPaths.add(cb.dataset.path);
@@ -603,7 +648,7 @@ function renderCollectionsTree() {
       cb.indeterminate = false;
     }
     const childCBs = li.querySelectorAll('ul input[type="checkbox"]') as any;
-    childCBs.forEach((c:any) => {
+    childCBs.forEach((c: any) => {
       const path = c.dataset.path;
       c.checked = checked;
       c.indeterminate = false;
@@ -614,7 +659,7 @@ function renderCollectionsTree() {
     });
   }
 
-  function updateAncestors(li:any) {
+  function updateAncestors(li: any) {
     let parent = li.parentElement;
     while (parent && parent !== collectionsTreeEl) {
       if (parent.tagName.toLowerCase() === 'ul') {
@@ -622,7 +667,7 @@ function renderCollectionsTree() {
         if (pli && pli.tagName.toLowerCase() === 'li') {
           const checks = parent.querySelectorAll(':scope > li > input[type="checkbox"]') as any;
           let allChecked = true, anyChecked = false;
-          checks.forEach((c:any) => {
+          checks.forEach((c: any) => {
             if (c.checked) anyChecked = true; else allChecked = false;
             if (c.indeterminate) { anyChecked = true; allChecked = false; }
           });
@@ -657,7 +702,7 @@ function updateCollectionsTriggerLabel() {
     (collectionsTrigger as any).textContent = getString('collectionAll');
     return;
   }
-  const arr = Array.from(selectedCollectionPaths).sort((a:any,b:any)=>String(a).localeCompare(String(b),'zh-CN'));
+  const arr = Array.from(selectedCollectionPaths).sort((a: any, b: any) => String(a).localeCompare(String(b), 'zh-CN'));
   if (arr.length <= 2) (collectionsTrigger as any).textContent = (arr as any).join(', ');
   else (collectionsTrigger as any).textContent = (arr as any)[0] + ` +${(arr as any).length - 1}`;
 }
@@ -672,7 +717,7 @@ document.addEventListener('click', (e) => {
   if (!within) toggleCollectionsPanel(false);
 });
 
-function renderHistogram(container:any, data:any, isColor = false) {
+function renderHistogram(container: any, data: any, isColor = false) {
   container.innerHTML = "";
   if (Object.keys(data).length === 0) {
     container.innerHTML = '<div class="no-data">' + getString('noData') + '</div>';
@@ -680,8 +725,8 @@ function renderHistogram(container:any, data:any, isColor = false) {
   }
   const keys = Object.keys(data);
   const maxVal = Math.max(...Object.values(data) as any);
-  keys.sort((a:any, b:any) => (data[b] - data[a]) || a.localeCompare(b, 'zh-CN'));
-  keys.forEach((key:any) => {
+  keys.sort((a: any, b: any) => (data[b] - data[a]) || a.localeCompare(b, 'zh-CN'));
+  keys.forEach((key: any) => {
     const val = (data as any)[key];
     const row = document.createElement('div');
     row.className = 'histogram-row';
@@ -715,11 +760,11 @@ function renderHistogram(container:any, data:any, isColor = false) {
 }
 
 function renderStats() {
-  const colorCounts:any = {};
-  const tagCounts:any = {};
-  combinedResults.forEach((a:any) => {
+  const colorCounts: any = {};
+  const tagCounts: any = {};
+  combinedResults.forEach((a: any) => {
     if (a.color) colorCounts[a.color] = (colorCounts[a.color] || 0) + 1;
-    asTagArray(a.tags).forEach((t:string) => {
+    asTagArray(a.tags).forEach((t: string) => {
       tagCounts[t] = (tagCounts[t] || 0) + 1;
     });
   });
@@ -729,24 +774,24 @@ function renderStats() {
   renderHistogram(tagHist, tagCounts, false);
 }
 
-async function removeTagFromAnnotation(itemID:number, tagToRemove:string, wrapper:any) {
+async function removeTagFromAnnotation(itemID: number, tagToRemove: string, wrapper: any) {
   try {
     const item = await (window as any).parent.Zotero.Items.get(itemID);
     if (!item) throw new Error("未找到 itemID=" + itemID);
     const existingTagObjs = item.getTags();
-    const existingTags = existingTagObjs.map((tObj:any) => tObj.tag);
-    const newTagNames = existingTags.filter((t:any) => t !== tagToRemove);
-    item.setTags(newTagNames.map((t:any) => ({ tag: t })));
+    const existingTags = existingTagObjs.map((tObj: any) => tObj.tag);
+    const newTagNames = existingTags.filter((t: any) => t !== tagToRemove);
+    item.setTags(newTagNames.map((t: any) => ({ tag: t })));
     await item.saveTx();
     (window as any).parent.Zotero.Notifier.trigger("item", "modify", itemID);
-    const idx = annotations.findIndex((a:any) => a.itemID === itemID);
+    const idx = annotations.findIndex((a: any) => a.itemID === itemID);
     if (idx >= 0) {
       (annotations as any)[idx].tags = newTagNames;
     }
     const tagsContainer = wrapper.querySelector(".annotation-tags") as any;
-    tagsContainer.querySelectorAll(".annotation-tag").forEach((el:any) => el.remove());
-    tagsContainer.querySelectorAll(".add-tag-wrapper").forEach((el:any) => el.remove());
-    newTagNames.forEach((t:any) => {
+    tagsContainer.querySelectorAll(".annotation-tag").forEach((el: any) => el.remove());
+    tagsContainer.querySelectorAll(".add-tag-wrapper").forEach((el: any) => el.remove());
+    newTagNames.forEach((t: any) => {
       const tagEl = document.createElement("span");
       tagEl.className = "annotation-tag";
       (tagEl as any).textContent = t;
@@ -758,7 +803,7 @@ async function removeTagFromAnnotation(itemID:number, tagToRemove:string, wrappe
       (delBtn as any).style.display = "none";
       tagEl.addEventListener("mouseenter", () => { (delBtn as any).style.display = "inline"; });
       tagEl.addEventListener("mouseleave", () => { (delBtn as any).style.display = "none"; });
-      delBtn.addEventListener("click", (e:any) => { e.stopPropagation(); removeTagFromAnnotation(itemID, t, wrapper); });
+      delBtn.addEventListener("click", (e: any) => { e.stopPropagation(); removeTagFromAnnotation(itemID, t, wrapper); });
       tagEl.appendChild(delBtn);
       tagsContainer.appendChild(tagEl);
     });
@@ -785,16 +830,16 @@ const batchAddTagBtn = document.getElementById("batch-add-tag-btn") as any;
 
 function getCurrentTagSuggestions() {
   const tagsSet = new Set<string>();
-  combinedResults.forEach((a:any) => {
-    asTagArray(a.tags).forEach((t:string) => tagsSet.add(t));
+  combinedResults.forEach((a: any) => {
+    asTagArray(a.tags).forEach((t: string) => tagsSet.add(t));
   });
   return Array.from(tagsSet).sort((a, b) => a.localeCompare(b, "zh-CN"));
 }
 function renderBatchTagSuggestions(filter = "") {
-  const suggestions = getCurrentTagSuggestions().filter((t:any) => t.includes(filter));
+  const suggestions = getCurrentTagSuggestions().filter((t: any) => t.includes(filter));
   if (suggestions.length === 0) { (batchTagSuggestions as any).style.display = "none"; return; }
   batchTagSuggestions.innerHTML = "";
-  suggestions.forEach((tag:any) => {
+  suggestions.forEach((tag: any) => {
     const item = document.createElement("div");
     (item as any).textContent = tag;
     (item as any).style.padding = "8px 12px";
@@ -821,13 +866,13 @@ batchAddTagBtn.addEventListener("click", async () => {
       const item = await (window as any).parent.Zotero.Items.get(itemID);
       if (!item) continue;
       const existingTagObjs = item.getTags();
-      const existingTags = existingTagObjs.map((tObj:any) => tObj.tag);
+      const existingTags = existingTagObjs.map((tObj: any) => tObj.tag);
       if (!existingTags.includes(tag)) {
         existingTags.push(tag);
-        item.setTags(existingTags.map((t:any) => ({ tag: t })));
+        item.setTags(existingTags.map((t: any) => ({ tag: t })));
         await item.saveTx();
         (window as any).parent.Zotero.Notifier.trigger("item", "modify", itemID);
-        const idx = annotations.findIndex((a:any) => a.itemID === itemID);
+        const idx = annotations.findIndex((a: any) => a.itemID === itemID);
         if (idx >= 0) {
           const current = (annotations as any)[idx].tags;
           const arr = Array.isArray(current) ? [...current] : asTagArray(current);
@@ -845,7 +890,7 @@ batchAddTagBtn.addEventListener("click", async () => {
 
 function getCurrentColorOptions() {
   const counts: Record<string, number> = {};
-  (annotations).forEach((a:any) => {
+  (annotations).forEach((a: any) => {
     const c = a.color;
     if (!c) return;
     counts[c] = (counts[c] || 0) + 1;
@@ -857,14 +902,14 @@ function getCurrentColorOptions() {
   return sorted.slice(0, 20);
 }
 
-async function changeAnnotationColor(itemID:number, newColor:string) {
+async function changeAnnotationColor(itemID: number, newColor: string) {
   try {
     const item = await (window as any).parent.Zotero.Items.get(itemID);
     if (!item) throw new Error("未找到 itemID=" + itemID);
     (item as any).annotationColor = newColor;
     await item.saveTx();
     (window as any).parent.Zotero.Notifier.trigger("item", "modify", itemID);
-    const idx = annotations.findIndex((a:any) => a.itemID === itemID);
+    const idx = annotations.findIndex((a: any) => a.itemID === itemID);
     if (idx >= 0) {
       (annotations as any)[idx].color = newColor;
     }
@@ -894,11 +939,11 @@ function openColorMenuForAnnotation(containerEl: HTMLElement, itemID: number) {
     (none as any).style.padding = '4px 6px';
     menu.appendChild(none);
   } else {
-    colors.forEach((col:any) => {
+    colors.forEach((col: any) => {
       const opt = document.createElement('div');
       opt.className = 'color-option';
       (opt as any).style.backgroundColor = col;
-      opt.addEventListener('mousedown', async (e:any) => {
+      opt.addEventListener('mousedown', async (e: any) => {
         e.preventDefault();
         e.stopPropagation();
         await changeAnnotationColor(itemID, col);

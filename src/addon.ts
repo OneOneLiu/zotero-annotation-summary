@@ -23,6 +23,7 @@ class Addon {
 
   public hooks: typeof hooks;
   public api: object;
+  public extractAllAnnotations: () => Promise<string | null> = extractAllAnnotations;
 
   constructor() {
     this.data = {

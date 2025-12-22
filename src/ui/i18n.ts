@@ -37,9 +37,9 @@ const I18N = {
     recent30days: '最近一月',
     recent365days: '最近一年',
     displayCountZH: '共显示 {count} 条标注',
-    pageTitle: 'Annotation Summary',
     batchTagInputPlaceholder: '输入标签',
     batchAddTagBtn: '添加标签',
+    refreshBtn: '刷新',
   },
   'en-US': {
     annotationSummaryTitle: 'Annotation Summary',
@@ -75,6 +75,7 @@ const I18N = {
     pageTitle: 'AnnotationSummary',
     batchTagInputPlaceholder: 'Enter tag',
     batchAddTagBtn: 'Add Tag',
+    refreshBtn: 'Refresh',
   },
 };
 
@@ -84,7 +85,7 @@ export function getString(key: string): string {
 
 export function fillI18nText(): void {
   (document.documentElement as any).lang = LOCALE;
-  const setText = (id: string, textKey: string, attr: 'textContent'|'placeholder' = 'textContent') => {
+  const setText = (id: string, textKey: string, attr: 'textContent' | 'placeholder' = 'textContent') => {
     const el: any = document.getElementById(id);
     if (el) el[attr] = getString(textKey);
   };
@@ -119,6 +120,7 @@ export function fillI18nText(): void {
   const input: any = document.getElementById('batch-tag-input');
   if (input) input.placeholder = getString('batchTagInputPlaceholder');
   setText('batch-add-tag-btn', 'batchAddTagBtn');
+  setText('refresh-btn-text', 'refreshBtn');
 }
 
 

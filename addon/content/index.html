@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,12 +8,25 @@
   <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon@0.5x.png" />
   <link
     href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Open+Sans:wght@400;600;700&display=swap"
-    rel="stylesheet"
-  />
-    <link rel="stylesheet" href="styles/index.css" />
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles/index.css" />
 </head>
+
 <body>
   <div class="container">
+    <!-- 左上角功能区 -->
+    <div class="top-left-actions">
+      <button id="refresh-btn" class="refresh-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 4v6h-6"></path>
+          <path d="M1 20v-6h6"></path>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        <span id="refresh-btn-text"></span>
+      </button>
+    </div>
+
     <h1 id="annotation-summary-title"></h1>
 
     <!-- 顶部右侧：文件夹多选树下拉 -->
@@ -33,11 +47,7 @@
       </div>
       <div class="control-group">
         <label for="comment-search" id="label-comment-search"></label>
-        <input
-          type="text"
-          id="comment-search"
-          placeholder=""
-        />
+        <input type="text" id="comment-search" placeholder="" />
       </div>
       <div class="control-group">
         <label for="items-per-row" id="label-items-per-row"></label>
@@ -73,10 +83,14 @@
     <!-- 批量添加标签 UI -->
     <div id="batch-add-tag-bar" style="margin: 24px 0 0 0; display: flex; align-items: center; gap: 12px;">
       <div style="position: relative; flex: 1;">
-        <input id="batch-tag-input" type="text" placeholder="输入标签" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;" autocomplete="off" />
-        <div id="batch-tag-suggestions" style="position: absolute; left: 0; right: 0; top: 100%; background: #fff; border: 1px solid #e1e5eb; border-radius: 0 0 6px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); z-index: 10; display: none;"></div>
+        <input id="batch-tag-input" type="text" placeholder="输入标签"
+          style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;" autocomplete="off" />
+        <div id="batch-tag-suggestions"
+          style="position: absolute; left: 0; right: 0; top: 100%; background: #fff; border: 1px solid #e1e5eb; border-radius: 0 0 6px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); z-index: 10; display: none;">
+        </div>
       </div>
-      <button id="batch-add-tag-btn" style="padding: 10px 18px; border-radius: 6px; background: var(--secondary-color); color: #fff; border: none; font-weight: 600; cursor: pointer;">添加标签</button>
+      <button id="batch-add-tag-btn"
+        style="padding: 10px 18px; border-radius: 6px; background: var(--secondary-color); color: #fff; border: none; font-weight: 600; cursor: pointer;">添加标签</button>
     </div>
     <div id="display-count"></div>
 
@@ -112,7 +126,7 @@
         </select>
       </div>
     </div>
-    
+
     <!-- 统计�?-->
     <div class="stats-container">
       <h2 id="stats-title"></h2>
@@ -131,4 +145,5 @@
 
   <script src="scripts/summary-ui.js"></script>
 </body>
+
 </html>

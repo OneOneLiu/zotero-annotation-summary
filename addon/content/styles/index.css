@@ -199,6 +199,44 @@ h2 {
 .collections-top-right label { display: none; }
 .collections-top-right .collections-panel { right: 0; left: auto; }
 
+/* 左上角定位Refresh按钮 */
+.top-left-actions {
+  position: absolute;
+  top: 24px;
+  left: 30px;
+  z-index: 15;
+}
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: white;
+  color: var(--primary-color);
+  border: 1px solid var(--medium-gray);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: var(--transition);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+.refresh-btn:hover {
+  background-color: var(--light-gray);
+  border-color: var(--secondary-color);
+  color: var(--secondary-color);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.refresh-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* —— 可折叠的层级 —— */
 .collections-tree li.has-children > .node-label {
   cursor: pointer;
