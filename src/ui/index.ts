@@ -798,7 +798,7 @@ function renderStats() {
 
   // Render Heatmap
   const heatmapContainer = document.getElementById('study-heatmap');
-  if (heatmapContainer) renderHeatmap(heatmapContainer, combinedResults);
+  if (heatmapContainer) renderHeatmap(heatmapContainer, annotations);
 }
 
 function renderHeatmap(container: HTMLElement, data: any[]) {

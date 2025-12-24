@@ -859,7 +859,7 @@ mark.highlight {
 }
 
 .heatmap-cell.selected {
-  border: 2px solid #e74c3c;
+  border: 2px solid var(--dark-gray);
   /* 红色边框表示选中 */
   transform: scale(1.2);
   z-index: 1;

@@ -62,7 +62,7 @@ const I18N = {
     statsTitle: 'Statistics',
     statsColor: 'Color Distribution',
     statsTag: 'Tag Distribution',
-    statsHeatmap: 'Study Heatmap',
+    statsHeatmap: 'Annotation Heatmap',
     noTag: 'No Tag',
     noData: 'No Data',
     daterangeLabel: 'Date Range:',
