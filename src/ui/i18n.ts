@@ -25,6 +25,7 @@ const I18N = {
     statsTitle: '统计分布',
     statsColor: '颜色分布',
     statsTag: '标签分布',
+    statsHeatmap: '学习热力图',
     noTag: '无标签',
     noData: '暂无数据',
     daterangeLabel: '日期范围:',
@@ -36,6 +37,7 @@ const I18N = {
     recent7days: '最近一周',
     recent30days: '最近一月',
     recent365days: '最近一年',
+    dateRangeCustom: '自定义',
     displayCountZH: '共显示 {count} 条标注',
     batchTagInputPlaceholder: '输入标签',
     batchAddTagBtn: '添加标签',
@@ -60,6 +62,7 @@ const I18N = {
     statsTitle: 'Statistics',
     statsColor: 'Color Distribution',
     statsTag: 'Tag Distribution',
+    statsHeatmap: 'Study Heatmap',
     noTag: 'No Tag',
     noData: 'No Data',
     daterangeLabel: 'Date Range:',
@@ -71,6 +74,7 @@ const I18N = {
     recent7days: 'Recent 7 Days',
     recent30days: 'Recent 1 Month',
     recent365days: 'Recent 1 Year',
+    dateRangeCustom: 'Customize',
     displayCountEN: 'Displaying {count} annotations',
     pageTitle: 'AnnotationSummary',
     batchTagInputPlaceholder: 'Enter tag',
@@ -106,6 +110,7 @@ export function fillI18nText(): void {
   setText('stats-title', 'statsTitle');
   setText('stats-color', 'statsColor');
   setText('stats-tag', 'statsTag');
+  setText('stats-heatmap', 'statsHeatmap');
   setText('no-results', 'noResults');
   setText('label-date-preset', 'daterangeLabel');
   setText('label-collection-filter', 'collectionFilterLabel');
@@ -117,6 +122,7 @@ export function fillI18nText(): void {
   setText('date-preset-7', 'recent7days');
   setText('date-preset-30', 'recent30days');
   setText('date-preset-365', 'recent365days');
+  setText('date-preset-custom', 'dateRangeCustom');
   const input: any = document.getElementById('batch-tag-input');
   if (input) input.placeholder = getString('batchTagInputPlaceholder');
   setText('batch-add-tag-btn', 'batchAddTagBtn');

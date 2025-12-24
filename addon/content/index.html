@@ -74,6 +74,7 @@
           <option value="7" id="date-preset-7"></option>
           <option value="30" id="date-preset-30"></option>
           <option value="365" id="date-preset-365"></option>
+          <option value="custom" id="date-preset-custom" disabled hidden></option>
         </select>
       </div>
 
@@ -140,9 +141,14 @@
           <div id="tag-histogram"></div>
         </div>
       </div>
+      <div id="heatmap-stats-box" class="stats-box" style="margin-top: 30px;">
+        <h3 id="stats-heatmap"></h3>
+        <div id="study-heatmap" class="heatmap-container"></div>
+      </div>
     </div>
   </div>
 
+  <div id="global-tooltip" class="global-tooltip"></div>
   <script src="scripts/summary-ui.js"></script>
 </body>
 

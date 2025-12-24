@@ -46,11 +46,9 @@ body {
   left: 0;
   width: 100%;
   height: 5px;
-  background: linear-gradient(
-    90deg,
-    var(--secondary-color),
-    var(--accent-color)
-  );
+  background: linear-gradient(90deg,
+      var(--secondary-color),
+      var(--accent-color));
 }
 
 h1 {
@@ -138,6 +136,7 @@ h2 {
   position: relative;
   display: inline-block;
 }
+
 .collections-trigger {
   padding: 10px 14px;
   border: 1px solid var(--medium-gray);
@@ -147,6 +146,7 @@ h2 {
   min-width: 220px;
   text-align: left;
 }
+
 .collections-panel {
   position: absolute;
   top: 100%;
@@ -156,13 +156,14 @@ h2 {
   border: 1px solid var(--medium-gray);
   border-radius: var(--border-radius);
   margin-top: 6px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   width: 360px;
   max-width: 90vw;
   max-height: 70vh;
   overflow: hidden;
   display: none;
 }
+
 .collections-tree {
   max-height: 60vh;
   overflow: auto;
@@ -173,14 +174,17 @@ h2 {
   border-radius: var(--border-radius);
   background: #fff;
 }
+
 .collections-tree ul {
   list-style: none;
   margin: 0;
   padding-left: 16px;
 }
+
 .collections-tree li {
   margin: 4px 0;
 }
+
 .collections-tree .node-label {
   margin-left: 6px;
   display: inline-block;
@@ -189,6 +193,7 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 /* 右上角定位容器 */
 .collections-top-right {
   position: absolute;
@@ -196,8 +201,15 @@ h2 {
   right: 30px;
   z-index: 15;
 }
-.collections-top-right label { display: none; }
-.collections-top-right .collections-panel { right: 0; left: auto; }
+
+.collections-top-right label {
+  display: none;
+}
+
+.collections-top-right .collections-panel {
+  right: 0;
+  left: auto;
+}
 
 /* 左上角定位Refresh按钮 */
 .top-left-actions {
@@ -206,6 +218,7 @@ h2 {
   left: 30px;
   z-index: 15;
 }
+
 .refresh-btn {
   display: flex;
   align-items: center;
@@ -219,31 +232,35 @@ h2 {
   font-weight: 600;
   font-size: 0.9rem;
   transition: var(--transition);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
+
 .refresh-btn:hover {
   background-color: var(--light-gray);
   border-color: var(--secondary-color);
   color: var(--secondary-color);
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+
 .refresh-btn svg {
   width: 16px;
   height: 16px;
 }
+
 .refresh-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
 /* —— 可折叠的层级 —— */
-.collections-tree li.has-children > .node-label {
+.collections-tree li.has-children>.node-label {
   cursor: pointer;
   user-select: none;
   color: var(--primary-color);
 }
-.collections-tree li.has-children > .node-label::before {
+
+.collections-tree li.has-children>.node-label::before {
   content: "▸";
   display: inline-block;
   margin-right: 6px;
@@ -251,10 +268,12 @@ h2 {
   transition: transform 0.2s ease;
   color: #7f8c8d;
 }
-.collections-tree li.has-children.collapsed > .node-label::before {
+
+.collections-tree li.has-children.collapsed>.node-label::before {
   transform: rotate(0deg);
 }
-.collections-tree li.has-children.collapsed > ul {
+
+.collections-tree li.has-children.collapsed>ul {
   display: none;
 }
 
@@ -351,8 +370,8 @@ h2 {
   background-color: white;
   display: flex;
   flex-direction: column;
-  height:auto;
-  align-self: start; 
+  height: auto;
+  align-self: start;
   background: linear-gradient(to bottom, #ffffff, #fcfdff);
 }
 
@@ -377,7 +396,7 @@ h2 {
   height: 16px;
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(0,0,0,0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .annotation-text {
@@ -388,7 +407,8 @@ h2 {
   font-size: 0.98rem;
   color: var(--primary-color);
   line-height: 1.5;
-  padding-right: 28px; /* 为右上角圆点让出空间 */
+  padding-right: 28px;
+  /* 为右上角圆点让出空间 */
 }
 
 .annotation-comment {
@@ -696,10 +716,10 @@ h2 {
   right: 0;
   bottom: 0;
   left: 0;
-  background: linear-gradient(90deg, 
-    rgba(255,255,255,0.15) 0%, 
-    rgba(255,255,255,0.3) 50%, 
-    rgba(255,255,255,0.15) 100%);
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.15) 0%,
+      rgba(255, 255, 255, 0.3) 50%,
+      rgba(255, 255, 255, 0.15) 100%);
 }
 
 .histogram-row .count {
@@ -739,11 +759,11 @@ h2 {
   .filter-group label {
     margin-bottom: 8px;
   }
-  
+
   .container {
     padding: 20px;
   }
-  
+
   #annotation-container {
     padding: 15px;
   }
@@ -754,6 +774,7 @@ h2 {
     width: 140px;
   }
 }
+
 /* —— 关键词高亮 —— */
 mark.highlight {
   background: #fff59d;
@@ -769,22 +790,113 @@ mark.highlight {
   border: 1px solid var(--medium-gray);
   border-radius: 8px;
   padding: 8px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
   z-index: 20;
   display: grid;
   grid-template-columns: repeat(6, 24px);
   gap: 8px;
 }
+
 .color-menu .color-option {
   width: 24px;
   height: 24px;
   border-radius: 50%;
   border: 2px solid #fff;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
   cursor: pointer;
 }
+
 .color-menu .color-option:hover {
   transform: scale(1.12);
 }
 
+/* —— Heatmap 样式 —— */
+.heatmap-container {
+  overflow-x: auto;
+  padding: 10px 0;
+  /* 恢复原样 */
+}
 
+.global-tooltip {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: translate(-50%, -120%);
+  /* Center above cursor */
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-rows: repeat(7, 12px);
+  grid-auto-flow: column;
+  gap: 3px;
+  width: max-content;
+}
+
+.heatmap-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background-color: #ebedf0;
+  /* Level 0 */
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.3);
+  z-index: 2;
+  border: 1px solid #aaa;
+}
+
+.heatmap-cell.selected {
+  border: 2px solid #e74c3c;
+  /* 红色边框表示选中 */
+  transform: scale(1.2);
+  z-index: 1;
+}
+
+/* 颜色等级 - 类似 GitHub */
+.heatmap-cell[data-level="1"] {
+  background-color: #9be9a8;
+}
+
+.heatmap-cell[data-level="2"] {
+  background-color: #40c463;
+}
+
+.heatmap-cell[data-level="3"] {
+  background-color: #30a14e;
+}
+
+.heatmap-cell[data-level="4"] {
+  background-color: #216e39;
+}
+
+/* Tooltip removed in favor of global-tooltip */
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: #586069;
+}
+
+.legend-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  display: inline-block;
+}

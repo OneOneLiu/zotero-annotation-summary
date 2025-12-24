@@ -118,6 +118,9 @@ if (refreshBtn && refreshBtnText) {
   });
 }
 
+// Heatmap state
+let selectedHeatmapDates = new Set<string>();
+
 async function loadAnnotations(fileUri?: string) {
   try {
     if (!fileUri) {
@@ -170,11 +173,30 @@ async function loadAnnotations(fileUri?: string) {
 // 启动时自动加载
 loadAnnotations();
 
+// Listen to date preset change to clear heatmap selection
+datePresetSelect.addEventListener('change', () => {
+  if (datePresetSelect.value !== 'custom') {
+    selectedHeatmapDates.clear();
+    filterAnnotations();
+  } else {
+    // user manually selected custom? usually triggered by heatmap click
+    // if user selects 'custom' manually but no dates selected, maybe clear heatmap?
+    if (selectedHeatmapDates.size === 0) {
+      datePresetSelect.value = 'all'; // reset if invalid
+      filterAnnotations();
+    }
+  }
+});
+
+
 function filterAnnotations() {
   const presetVal = datePresetSelect.value;
   let dateStart: any = null;
   let dateEnd: any = null;
-  if (presetVal !== "all") {
+
+  const isCustomMode = presetVal === 'custom' && selectedHeatmapDates.size > 0;
+
+  if (!isCustomMode && presetVal !== "all") {
     const days = parseInt(presetVal, 10);
     const today = new Date();
     const startDate = new Date(today);
@@ -192,7 +214,8 @@ function filterAnnotations() {
   const hasCommentQuery = commentQuery !== "";
   const hasTagFilters = selectedTags.size > 0;
   const hasColorFilters = selectedColors.size > 0;
-  const hasDateFilter = dateStart !== null && dateEnd !== null;
+  // If custom mode, we use set check instead of range
+  const hasDateFilter = isCustomMode || (dateStart !== null && dateEnd !== null);
   const hasCollectionFilter = selectedCollectionPaths.size > 0;
 
   function matchesCollection(a) {
@@ -204,12 +227,21 @@ function filterAnnotations() {
     return false;
   }
 
-  textResults = annotations.filter((a) => {
-    if (hasDateFilter) {
-      if (!a.dateAdded) return false;
-      const d = new Date(a.dateAdded);
-      if (d < dateStart || d > dateEnd) return false;
+  function matchesDate(a) {
+    if (!hasDateFilter) return true; // 'all' and no custom selection
+    if (!a.dateAdded) return false;
+    const d = new Date(a.dateAdded);
+
+    if (isCustomMode) {
+      const k = d.toISOString().slice(0, 10);
+      return selectedHeatmapDates.has(k);
+    } else {
+      return d >= dateStart && d <= dateEnd;
     }
+  }
+
+  textResults = annotations.filter((a) => {
+    if (!matchesDate(a)) return false;
     if (!matchesCollection(a)) return false;
     const txt = (a.text || "").toLowerCase();
     const cmt = (a.comment || "").toLowerCase();
@@ -244,11 +276,7 @@ function filterAnnotations() {
   }
 
   bottomResults = annotations.filter((a) => {
-    if (hasDateFilter) {
-      if (!a.dateAdded) return false;
-      const d = new Date(a.dateAdded);
-      if (d < dateStart || d > dateEnd) return false;
-    }
+    if (!matchesDate(a)) return false;
     if (!matchesCollection(a)) return false;
     let matchTag = true;
     if (hasTagFilters) {
@@ -287,16 +315,8 @@ function filterAnnotations() {
   const textActive = hasTextQuery || hasCommentQuery;
   const bottomActive = hasTagFilters || hasColorFilters;
   if (!textActive && !bottomActive) {
-    if (hasDateFilter) {
-      combinedResults = annotations.filter((a) => {
-        if (!a.dateAdded) return false;
-        const d = new Date(a.dateAdded);
-        if (!(d >= dateStart && d <= dateEnd)) return false;
-        return matchesCollection(a);
-      });
-    } else {
-      combinedResults = annotations.filter(a => matchesCollection(a));
-    }
+    // optimized path
+    combinedResults = annotations.filter((a) => matchesDate(a) && matchesCollection(a));
   } else if (textActive && !bottomActive) {
     combinedResults = textResults.slice();
   } else if (!textActive && bottomActive) {
@@ -319,7 +339,10 @@ function filterAnnotations() {
       selectedColors.clear();
       textInput.value = "";
       commentInput.value = "";
-      datePresetSelect && (datePresetSelect.value = "all");
+      // Don't reset datePreset if it is custom
+      if (datePresetSelect.value !== 'custom') {
+        datePresetSelect.value = "all";
+      }
       tagOpSelect.value = "OR";
       colorOpSelect.value = "OR";
       setTimeout(() => filterAnnotations(), 0);
@@ -772,6 +795,126 @@ function renderStats() {
   renderHistogram(colorHist, colorCounts, true);
   const tagHist = document.getElementById('tag-histogram') as any;
   renderHistogram(tagHist, tagCounts, false);
+
+  // Render Heatmap
+  const heatmapContainer = document.getElementById('study-heatmap');
+  if (heatmapContainer) renderHeatmap(heatmapContainer, combinedResults);
+}
+
+function renderHeatmap(container: HTMLElement, data: any[]) {
+  container.innerHTML = '';
+
+  const countMap = new Map<string, number>();
+  const today = new Date();
+  const endDate = new Date(today);
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - 364);
+
+  data.forEach((a: any) => {
+    if (a.dateAdded) {
+      const d = new Date(a.dateAdded);
+      const k = d.toISOString().slice(0, 10);
+      countMap.set(k, (countMap.get(k) || 0) + 1);
+    }
+  });
+
+  const dates = [];
+  let current = new Date(startDate);
+  const dayOfWeek = current.getDay();
+  current.setDate(current.getDate() - dayOfWeek);
+
+  while (current <= endDate) {
+    dates.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'heatmap-grid';
+
+  dates.forEach(date => {
+    const k = date.toISOString().slice(0, 10);
+    const count = countMap.get(k) || 0;
+
+    const cell = document.createElement('div');
+    cell.className = 'heatmap-cell';
+
+    let level = 0;
+    if (count > 0) level = 1;
+    if (count > 2) level = 2;
+    if (count > 5) level = 3;
+    if (count > 10) level = 4;
+
+    cell.setAttribute('data-level', String(level));
+    // cell.setAttribute('data-title', `${k}: ${count} annotations`); // Removed for custom tooltip
+    cell.setAttribute('data-date', k);
+
+    if (selectedHeatmapDates.has(k)) {
+      cell.classList.add('selected');
+    }
+
+    // Custom Tooltip Logic
+    cell.addEventListener('mouseenter', () => {
+      const tooltip = document.getElementById('global-tooltip');
+      if (tooltip) {
+        tooltip.textContent = `${k}: ${count} annotations`;
+        tooltip.style.display = 'block';
+      }
+    });
+    cell.addEventListener('mousemove', (e) => {
+      const tooltip = document.getElementById('global-tooltip');
+      if (tooltip) {
+        tooltip.style.left = e.clientX + 'px';
+        tooltip.style.top = e.clientY + 'px';
+      }
+    });
+    cell.addEventListener('mouseleave', () => {
+      const tooltip = document.getElementById('global-tooltip');
+      if (tooltip) tooltip.style.display = 'none';
+    });
+
+    cell.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (selectedHeatmapDates.has(k)) {
+        selectedHeatmapDates.delete(k);
+        cell.classList.remove('selected');
+      } else {
+        selectedHeatmapDates.add(k);
+        cell.classList.add('selected');
+      }
+
+      if (selectedHeatmapDates.size > 0) {
+        const customOpt = document.getElementById('date-preset-custom') as HTMLOptionElement;
+        if (customOpt) customOpt.disabled = false;
+        datePresetSelect.value = 'custom';
+      } else {
+        // Revert to all if cleared
+        datePresetSelect.value = 'all';
+        const customOpt = document.getElementById('date-preset-custom') as HTMLOptionElement;
+        if (customOpt) customOpt.disabled = true;
+      }
+
+      filterAnnotations();
+    });
+
+    grid.appendChild(cell);
+  });
+
+  container.appendChild(grid);
+
+  const legend = document.createElement('div');
+  legend.className = 'heatmap-legend';
+  legend.innerHTML = `
+    <span>Less</span>
+    <span class="legend-cell" style="background-color: #ebedf0"></span>
+    <span class="legend-cell" style="background-color: #9be9a8"></span>
+    <span class="legend-cell" style="background-color: #40c463"></span>
+    <span class="legend-cell" style="background-color: #30a14e"></span>
+    <span class="legend-cell" style="background-color: #216e39"></span>
+    <span>More</span>
+  `;
+  container.appendChild(legend);
 }
 
 async function removeTagFromAnnotation(itemID: number, tagToRemove: string, wrapper: any) {
