@@ -13,148 +13,166 @@
 </head>
 
 <body data-theme="light">
-  <div class="container">
-    <!-- 左上角功能区 -->
-    <div class="top-left-actions">
-      <button id="refresh-btn" class="refresh-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M23 4v6h-6"></path>
-          <path d="M1 20v-6h6"></path>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-        </svg>
-        <span id="refresh-btn-text"></span>
-      </button>
-    </div>
-
-    <h1 id="annotation-summary-title"></h1>
-
-    <!-- 顶部右侧：主题选择器 + 文件夹多选树下拉 -->
-    <div class="collections-top-right">
-      <div class="theme-selector-wrapper">
-        <label for="theme-selector" id="label-theme-selector"></label>
-        <select id="theme-selector" class="theme-selector">
-          <option value="light" id="theme-option-light"></option>
-          <option value="dark" id="theme-option-dark"></option>
-          <option value="beige" id="theme-option-beige"></option>
-          <option value="green" id="theme-option-green"></option>
-        </select>
-      </div>
-      <label id="label-collection-filter"></label>
-      <div class="collections-dropdown">
-        <button id="collections-trigger" class="collections-trigger"></button>
-        <div id="collections-panel" class="collections-panel">
-          <div id="collections-tree" class="collections-tree"></div>
+  <div class="main-layout">
+    <!-- 左侧边栏 - 功能区 -->
+    <aside class="sidebar-left">
+      <div class="sidebar-header">
+        <div class="sidebar-top-controls">
+          <div class="theme-selector-wrapper">
+            <label for="theme-selector" id="label-theme-selector"></label>
+            <select id="theme-selector" class="theme-selector">
+              <option value="light" id="theme-option-light"></option>
+              <option value="dark" id="theme-option-dark"></option>
+              <option value="beige" id="theme-option-beige"></option>
+              <option value="green" id="theme-option-green"></option>
+            </select>
+          </div>
+          <button id="refresh-btn" class="refresh-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 4v6h-6"></path>
+              <path d="M1 20v-6h6"></path>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <span id="refresh-btn-text"></span>
+          </button>
         </div>
       </div>
-    </div>
 
-    <div class="controls">
-      <div class="control-group">
-        <label for="text-search" id="label-text-search"></label>
-        <input type="text" id="text-search" placeholder="" />
-      </div>
-      <div class="control-group">
-        <label for="comment-search" id="label-comment-search"></label>
-        <input type="text" id="comment-search" placeholder="" />
-      </div>
-      <div class="control-group">
-        <label for="items-per-row" id="label-items-per-row"></label>
-        <input type="number" id="items-per-row" min="1" max="3" value="1" />
-      </div>
+      <div class="sidebar-content">
+        <!-- 文件夹过滤 -->
+        <div class="sidebar-section">
+          <label id="label-collection-filter" class="section-title"></label>
+          <div class="collections-dropdown">
+            <button id="collections-trigger" class="collections-trigger"></button>
+            <div id="collections-panel" class="collections-panel">
+              <div id="collections-tree" class="collections-tree"></div>
+            </div>
+          </div>
+        </div>
 
-      <!-- "每页显示数量" 下拉菜单 -->
-      <div class="control-group">
-        <label for="items-per-page" id="label-items-per-page"></label>
-        <select id="items-per-page">
-          <option value="50">50</option>
-          <option value="100">100</option>
-          <option value="200">200</option>
-        </select>
-      </div>
+        <!-- 搜索过滤 -->
+        <div class="sidebar-section">
+          <div class="control-group">
+            <label for="text-search" id="label-text-search"></label>
+            <input type="text" id="text-search" placeholder="" />
+          </div>
+          <div class="control-group">
+            <label for="comment-search" id="label-comment-search"></label>
+            <input type="text" id="comment-search" placeholder="" />
+          </div>
+        </div>
 
-      <!-- 仅保�?日期范围"下拉菜单 -->
-      <div class="control-group">
-        <label for="date-preset" id="label-date-preset"></label>
-        <select id="date-preset">
-          <option value="all" id="date-preset-all"></option>
-          <option value="1" id="date-preset-1"></option>
-          <option value="3" id="date-preset-3"></option>
-          <option value="7" id="date-preset-7"></option>
-          <option value="30" id="date-preset-30"></option>
-          <option value="365" id="date-preset-365"></option>
-          <option value="custom" id="date-preset-custom" disabled hidden></option>
-        </select>
-      </div>
+        <!-- 显示设置 -->
+        <div class="sidebar-section">
+          <div class="control-group">
+            <label for="items-per-row" id="label-items-per-row"></label>
+            <input type="number" id="items-per-row" min="1" max="3" value="1" />
+          </div>
+          <div class="control-group">
+            <label for="items-per-page" id="label-items-per-page"></label>
+            <select id="items-per-page">
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="date-preset" id="label-date-preset"></label>
+            <select id="date-preset">
+              <option value="all" id="date-preset-all"></option>
+              <option value="1" id="date-preset-1"></option>
+              <option value="3" id="date-preset-3"></option>
+              <option value="7" id="date-preset-7"></option>
+              <option value="30" id="date-preset-30"></option>
+              <option value="365" id="date-preset-365"></option>
+              <option value="custom" id="date-preset-custom" disabled hidden></option>
+            </select>
+          </div>
+        </div>
 
-    </div>
+        <!-- 颜色过滤 -->
+        <div class="sidebar-section">
+          <h3 class="section-title" id="label-color-filter"></h3>
+          <div class="colors-list" id="colors-list"></div>
+          <div class="filter-operator">
+            <label for="color-op" id="label-color-op"></label>
+            <select id="color-op">
+              <option value="OR">OR</option>
+              <option value="AND">AND</option>
+              <option value="NOT">NOT</option>
+            </select>
+          </div>
+        </div>
 
-    <div id="annotation-container"></div>
-    <!-- 批量添加标签 UI -->
-    <div id="batch-add-tag-bar" style="margin: 24px 0 0 0; display: flex; align-items: center; gap: 12px;">
-      <div style="position: relative; flex: 1;">
-        <input id="batch-tag-input" type="text" placeholder="输入标签"
-          style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;" autocomplete="off" />
-        <div id="batch-tag-suggestions"
-          style="position: absolute; left: 0; right: 0; top: 100%; background: #fff; border: 1px solid #e1e5eb; border-radius: 0 0 6px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); z-index: 10; display: none;">
+        <!-- 标签过滤 -->
+        <div class="sidebar-section">
+          <h3 class="section-title" id="label-tag-filter"></h3>
+          <div class="tags-list" id="tags-list"></div>
+          <div class="filter-operator">
+            <label for="tag-op" id="label-tag-op"></label>
+            <select id="tag-op">
+              <option value="OR">OR</option>
+              <option value="AND">AND</option>
+              <option value="NOT">NOT</option>
+            </select>
+          </div>
         </div>
       </div>
-      <button id="batch-add-tag-btn"
-        style="padding: 10px 18px; border-radius: 6px; background: var(--secondary-color); color: #fff; border: none; font-weight: 600; cursor: pointer;">添加标签</button>
-    </div>
-    <div id="display-count"></div>
+    </aside>
 
-    <!-- 分页导航 -->
-    <div id="pagination-container">
-      <button id="prev-page"></button>
-      <span id="page-info"></span>
-      <button id="next-page"></button>
-    </div>
+    <!-- 右侧主内容区 -->
+    <main class="content-right">
+      <div class="content-wrapper">
+        <!-- 显示计数 -->
+        <div id="display-count"></div>
 
-    <div id="no-results" style="display: none;"></div>
+        <!-- 注释容器 -->
+        <div id="annotation-container"></div>
 
-    <div class="filters-container">
-      <div class="filter-group">
-        <label id="label-color-filter"></label>
-        <div class="colors-list" id="colors-list"></div>
-        <label for="color-op" id="label-color-op"></label>
-        <select id="color-op">
-          <option value="OR">OR</option>
-          <option value="AND">AND</option>
-          <option value="NOT">NOT</option>
-        </select>
-      </div>
+        <!-- 无结果提示 -->
+        <div id="no-results" style="display: none;"></div>
 
-      <div class="filter-group">
-        <label id="label-tag-filter"></label>
-        <div class="tags-list" id="tags-list"></div>
-        <label for="tag-op" id="label-tag-op"></label>
-        <select id="tag-op">
-          <option value="OR">OR</option>
-          <option value="AND">AND</option>
-          <option value="NOT">NOT</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- 统计�?-->
-    <div class="stats-container">
-      <h2 id="stats-title"></h2>
-      <div class="stats-grid">
-        <div class="stats-box">
-          <h3 id="stats-color"></h3>
-          <div id="color-histogram"></div>
+        <!-- 批量添加标签 -->
+        <div id="batch-add-tag-bar" style="margin: 24px 0 0 0; display: flex; align-items: center; gap: 12px;">
+          <div style="position: relative; flex: 1;">
+            <input id="batch-tag-input" type="text" placeholder="输入标签"
+              style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;" autocomplete="off" />
+            <div id="batch-tag-suggestions"
+              style="position: absolute; left: 0; right: 0; top: 100%; background: #fff; border: 1px solid #e1e5eb; border-radius: 0 0 6px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); z-index: 10; display: none;">
+            </div>
+          </div>
+          <button id="batch-add-tag-btn"
+            style="padding: 10px 18px; border-radius: 6px; background: var(--secondary-color); color: #fff; border: none; font-weight: 600; cursor: pointer;">添加标签</button>
         </div>
-        <div class="stats-box">
-          <h3 id="stats-tag"></h3>
-          <div id="tag-histogram"></div>
+
+        <!-- 分页导航 -->
+        <div id="pagination-container">
+          <button id="prev-page"></button>
+          <span id="page-info"></span>
+          <button id="next-page"></button>
+        </div>
+
+        <!-- 统计区域 -->
+        <div class="stats-container">
+          <h2 id="stats-title"></h2>
+          <div class="stats-grid">
+            <div class="stats-box">
+              <h3 id="stats-color"></h3>
+              <div id="color-histogram"></div>
+            </div>
+            <div class="stats-box">
+              <h3 id="stats-tag"></h3>
+              <div id="tag-histogram"></div>
+            </div>
+          </div>
+          <div id="heatmap-stats-box" class="stats-box" style="margin-top: 20px;">
+            <h3 id="stats-heatmap"></h3>
+            <div id="study-heatmap" class="heatmap-container"></div>
+          </div>
         </div>
       </div>
-      <div id="heatmap-stats-box" class="stats-box" style="margin-top: 30px;">
-        <h3 id="stats-heatmap"></h3>
-        <div id="study-heatmap" class="heatmap-container"></div>
-      </div>
-    </div>
+    </main>
   </div>
 
   <div id="global-tooltip" class="global-tooltip"></div>
