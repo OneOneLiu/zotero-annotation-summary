@@ -1151,8 +1151,16 @@ function openColorMenuForAnnotation(containerEl: HTMLElement, itemID: number) {
     });
   }
 
-  // 挂到 header 上，按 CSS 相对定位
-  containerEl.appendChild(menu);
+  // 计算 containerEl (annotation-header) 的绝对位置
+  const rect = containerEl.getBoundingClientRect();
+
+  // 将菜单挂载到 body，使用 fixed 定位
+  (menu as any).style.position = 'fixed';
+  (menu as any).style.top = `${rect.bottom + 4}px`; // 在 header 下方 4px
+  (menu as any).style.left = `${rect.right - 200}px`; // 右对齐，预留菜单宽度（6列布局约200px）
+  (menu as any).style.zIndex = '9999'; // 确保在最顶层
+
+  document.body.appendChild(menu);
 }
 
 
