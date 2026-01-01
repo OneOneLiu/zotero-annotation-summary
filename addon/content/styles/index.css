@@ -671,43 +671,57 @@ h2 {
 }
 
 /* ---------- 侧边栏中的标签/颜色筛选 ---------- */
-.filter-operator {
+.filter-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  margin-top: 12px;
+  margin-bottom: 8px;
 }
 
-.filter-operator label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-tertiary);
+.filter-header .section-title {
+  margin-bottom: 0;
+  flex: 1;
 }
 
-.filter-operator select {
-  padding: 6px 8px;
+.filter-op-select {
+  padding: 4px 6px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 0.8rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
   background-color: var(--bg-tertiary);
   color: var(--text-secondary);
-  flex: 1;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  min-width: 50px;
+}
+
+.filter-op-select:hover {
+  background-color: var(--bg-elevated);
+  border-color: var(--border-hover);
+}
+
+.filter-op-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
 }
 
 .tags-list,
 .colors-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 4px;
+  margin-bottom: 6px;
 }
 
 .tag-item {
   background-color: var(--bg-elevated);
-  padding: 6px 12px;
-  border-radius: 12px;
+  padding: 3px 6px;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   transition: var(--transition);
   border: 1px solid var(--border-color);
   font-weight: 600;
@@ -743,8 +757,8 @@ h2 {
 }
 
 .color-item {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 2px solid var(--border-color);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -970,8 +984,16 @@ h2 {
 /* —— 关键词高亮 —— */
 mark.highlight {
   background: rgba(255, 197, 61, 0.4);
-  color: #ffd966;
+  color: #1a1a1a;
   padding: 0 2px;
+  font-weight: 600;
+}
+
+/* 暗色主题的高亮 */
+[data-theme="dark"] mark.highlight {
+  background: rgba(255, 197, 61, 0.5);
+  color: #ffffff;
+  font-weight: 600;
 }
 
 /* —— 注释颜色右键菜单 —— */

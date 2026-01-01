@@ -93,30 +93,28 @@
 
         <!-- 颜色过滤 -->
         <div class="sidebar-section">
-          <h3 class="section-title" id="label-color-filter"></h3>
-          <div class="colors-list" id="colors-list"></div>
-          <div class="filter-operator">
-            <label for="color-op" id="label-color-op"></label>
-            <select id="color-op">
+          <div class="filter-header">
+            <h3 class="section-title" id="label-color-filter"></h3>
+            <select id="color-op" class="filter-op-select">
               <option value="OR">OR</option>
               <option value="AND">AND</option>
               <option value="NOT">NOT</option>
             </select>
           </div>
+          <div class="colors-list" id="colors-list"></div>
         </div>
 
         <!-- 标签过滤 -->
         <div class="sidebar-section">
-          <h3 class="section-title" id="label-tag-filter"></h3>
-          <div class="tags-list" id="tags-list"></div>
-          <div class="filter-operator">
-            <label for="tag-op" id="label-tag-op"></label>
-            <select id="tag-op">
+          <div class="filter-header">
+            <h3 class="section-title" id="label-tag-filter"></h3>
+            <select id="tag-op" class="filter-op-select">
               <option value="OR">OR</option>
               <option value="AND">AND</option>
               <option value="NOT">NOT</option>
             </select>
           </div>
+          <div class="tags-list" id="tags-list"></div>
         </div>
       </div>
     </aside>
