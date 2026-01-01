@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="styles/index.css" />
 </head>
 
-<body>
+<body data-theme="light">
   <div class="container">
     <!-- 左上角功能区 -->
     <div class="top-left-actions">
@@ -29,8 +29,17 @@
 
     <h1 id="annotation-summary-title"></h1>
 
-    <!-- 顶部右侧：文件夹多选树下拉 -->
+    <!-- 顶部右侧：主题选择器 + 文件夹多选树下拉 -->
     <div class="collections-top-right">
+      <div class="theme-selector-wrapper">
+        <label for="theme-selector" id="label-theme-selector"></label>
+        <select id="theme-selector" class="theme-selector">
+          <option value="light" id="theme-option-light"></option>
+          <option value="dark" id="theme-option-dark"></option>
+          <option value="beige" id="theme-option-beige"></option>
+          <option value="green" id="theme-option-green"></option>
+        </select>
+      </div>
       <label id="label-collection-filter"></label>
       <div class="collections-dropdown">
         <button id="collections-trigger" class="collections-trigger"></button>

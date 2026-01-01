@@ -42,6 +42,11 @@ const I18N = {
     batchTagInputPlaceholder: '输入标签',
     batchAddTagBtn: '添加标签',
     refreshBtn: '刷新',
+    themeLabel: '主题:',
+    themeLight: '亮色',
+    themeDark: '暗色',
+    themeBeige: '米色',
+    themeGreen: '护眼绿',
   },
   'en-US': {
     annotationSummaryTitle: 'Annotation Summary',
@@ -80,6 +85,11 @@ const I18N = {
     batchTagInputPlaceholder: 'Enter tag',
     batchAddTagBtn: 'Add Tag',
     refreshBtn: 'Refresh',
+    themeLabel: 'Theme:',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    themeBeige: 'Beige',
+    themeGreen: 'Eye-care Green',
   },
 };
 
@@ -127,6 +137,13 @@ export function fillI18nText(): void {
   if (input) input.placeholder = getString('batchTagInputPlaceholder');
   setText('batch-add-tag-btn', 'batchAddTagBtn');
   setText('refresh-btn-text', 'refreshBtn');
+
+  // 主题选择器
+  setText('label-theme-selector', 'themeLabel');
+  setText('theme-option-light', 'themeLight');
+  setText('theme-option-dark', 'themeDark');
+  setText('theme-option-beige', 'themeBeige');
+  setText('theme-option-green', 'themeGreen');
 }
 
 

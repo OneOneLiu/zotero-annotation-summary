@@ -118,6 +118,60 @@ if (refreshBtn && refreshBtnText) {
   });
 }
 
+// —— 主题切换功能 ——
+const THEME_KEY = 'annotation-summary-theme';
+type ThemeType = 'light' | 'dark' | 'beige' | 'green';
+let currentThemeCache: ThemeType = 'light'; // 内存缓存
+
+function getCurrentTheme(): ThemeType {
+  try {
+    // 尝试使用sessionStorage（Zotero环境中更可靠）
+    const saved = sessionStorage.getItem(THEME_KEY) as ThemeType | null;
+    if (saved && ['light', 'dark', 'beige', 'green'].includes(saved)) {
+      currentThemeCache = saved;
+      return saved;
+    }
+  } catch (e) {
+    console.log('sessionStorage not available, using memory cache');
+  }
+  return currentThemeCache; // 回退到内存缓存
+}
+
+function setTheme(theme: ThemeType) {
+  document.body.dataset.theme = theme;
+  currentThemeCache = theme; // 总是更新内存缓存
+  try {
+    sessionStorage.setItem(THEME_KEY, theme);
+  } catch (e) {
+    console.log('sessionStorage not available for theme storage');
+  }
+}
+
+// 在DOMContentLoaded中初始化主题
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('Initializing theme...');
+
+  // 初始化主题
+  const initialTheme = getCurrentTheme();
+  console.log('Initial theme:', initialTheme);
+  setTheme(initialTheme);
+
+  // 绑定主题选择器
+  const themeSelector = document.getElementById('theme-selector') as HTMLSelectElement | null;
+  console.log('Theme selector found:', !!themeSelector);
+  if (themeSelector) {
+    // 设置当前值
+    themeSelector.value = initialTheme;
+
+    // 监听变化
+    themeSelector.addEventListener('change', (e) => {
+      const newTheme = (e.target as HTMLSelectElement).value as ThemeType;
+      console.log('Theme changed to:', newTheme);
+      setTheme(newTheme);
+    });
+  }
+});
+
 // Heatmap state
 let selectedHeatmapDates = new Set<string>();
 
@@ -387,7 +441,8 @@ function renderAnnotations() {
     } else {
       (wrapper as any).style.boxShadow = "var(--box-shadow)";
       (wrapper as any).style.transform = "none";
-      (wrapper as any).style.background = "white";
+      // 移除硬编码白色背景，让CSS变量生效
+      (wrapper as any).style.background = "";
       (wrapper as any).style.zIndex = 1;
     }
     if (a.uri) {
