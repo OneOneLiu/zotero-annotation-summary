@@ -47,6 +47,8 @@ const I18N = {
     themeDark: '暗色',
     themeBeige: '米色',
     themeGreen: '护眼绿',
+    regexToggleTooltip: '点击启用正则表达式模式',
+    regexToggleTooltipActive: '正则表达式模式已启用，点击关闭',
   },
   'en-US': {
     annotationSummaryTitle: 'Annotation Summary',
@@ -90,6 +92,8 @@ const I18N = {
     themeDark: 'Dark',
     themeBeige: 'Beige',
     themeGreen: 'Eye-care Green',
+    regexToggleTooltip: 'Click to enable regex mode',
+    regexToggleTooltipActive: 'Regex mode enabled, click to disable',
   },
 };
 
@@ -144,6 +148,12 @@ export function fillI18nText(): void {
   setText('theme-option-dark', 'themeDark');
   setText('theme-option-beige', 'themeBeige');
   setText('theme-option-green', 'themeGreen');
+
+  // 正则表达式切换按钮的 tooltip
+  const textRegex = document.getElementById('text-regex-toggle');
+  const commentRegex = document.getElementById('comment-regex-toggle');
+  if (textRegex) textRegex.title = getString('regexToggleTooltip');
+  if (commentRegex) commentRegex.title = getString('regexToggleTooltip');
 }
 
 

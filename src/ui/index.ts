@@ -41,6 +41,12 @@ let selectedTags = new Set<string>();
 let selectedColors = new Set<string>();
 let selectedAnnotationIds = new Set<number>();
 
+// —— 正则表达式模式状态 ——
+const textRegexToggle = document.getElementById("text-regex-toggle") as HTMLButtonElement;
+const commentRegexToggle = document.getElementById("comment-regex-toggle") as HTMLButtonElement;
+let textRegexEnabled = false;
+let commentRegexEnabled = false;
+
 (function ensureTagArrayHelper() {
   // Normalize tag field which may be an array (preferred), a JSON stringified array,
   // or a legacy comma-joined string.
@@ -227,6 +233,22 @@ async function loadAnnotations(fileUri?: string) {
 // 启动时自动加载
 loadAnnotations();
 
+// —— 正则表达式切换按钮事件 ——
+function setupRegexToggle(button: HTMLButtonElement | null, getState: () => boolean, setState: (v: boolean) => void) {
+  if (!button) return;
+  button.addEventListener("click", () => {
+    const newState = !getState();
+    setState(newState);
+    button.classList.toggle("active", newState);
+    // 更新 tooltip
+    button.title = newState ? getString('regexToggleTooltipActive') : getString('regexToggleTooltip');
+    filterAnnotations();
+  });
+}
+
+setupRegexToggle(textRegexToggle, () => textRegexEnabled, (v) => { textRegexEnabled = v; });
+setupRegexToggle(commentRegexToggle, () => commentRegexEnabled, (v) => { commentRegexEnabled = v; });
+
 // Listen to date preset change to clear heatmap selection
 datePresetSelect.addEventListener('change', () => {
   if (datePresetSelect.value !== 'custom') {
@@ -262,15 +284,32 @@ function filterAnnotations() {
     dateEnd = endDate;
   }
 
-  const textQuery = textInput.value.trim().toLowerCase();
-  const commentQuery = commentInput.value.trim().toLowerCase();
-  const hasTextQuery = textQuery !== "";
-  const hasCommentQuery = commentQuery !== "";
+  const textQueryRaw = textInput.value.trim();
+  const commentQueryRaw = commentInput.value.trim();
+  const textQuery = textQueryRaw.toLowerCase();
+  const commentQuery = commentQueryRaw.toLowerCase();
+  const hasTextQuery = textQueryRaw !== "";
+  const hasCommentQuery = commentQueryRaw !== "";
   const hasTagFilters = selectedTags.size > 0;
   const hasColorFilters = selectedColors.size > 0;
   // If custom mode, we use set check instead of range
   const hasDateFilter = isCustomMode || (dateStart !== null && dateEnd !== null);
   const hasCollectionFilter = selectedCollectionPaths.size > 0;
+
+  // 正则/普通搜索匹配辅助函数
+  function matchesSearch(content: string, query: string, isRegex: boolean): boolean {
+    if (!query) return false;
+    if (isRegex) {
+      try {
+        const re = new RegExp(query, "gi");
+        return re.test(content);
+      } catch {
+        // 无效正则回退到普通匹配
+        return content.toLowerCase().includes(query.toLowerCase());
+      }
+    }
+    return content.toLowerCase().includes(query.toLowerCase());
+  }
 
   function matchesCollection(a) {
     if (!hasCollectionFilter) return true;
@@ -297,10 +336,8 @@ function filterAnnotations() {
   textResults = annotations.filter((a) => {
     if (!matchesDate(a)) return false;
     if (!matchesCollection(a)) return false;
-    const txt = (a.text || "").toLowerCase();
-    const cmt = (a.comment || "").toLowerCase();
-    const matchText = hasTextQuery ? txt.includes(textQuery) : false;
-    const matchComment = hasCommentQuery ? cmt.includes(commentQuery) : false;
+    const matchText = hasTextQuery ? matchesSearch(a.text || "", textQueryRaw, textRegexEnabled) : false;
+    const matchComment = hasCommentQuery ? matchesSearch(a.comment || "", commentQueryRaw, commentRegexEnabled) : false;
     if (!hasTextQuery && !hasCommentQuery) return true;
     if (hasTextQuery && hasCommentQuery) return matchText && matchComment;
     return hasTextQuery ? matchText : matchComment;
@@ -477,7 +514,7 @@ function renderAnnotations() {
     const textDiv = document.createElement("div");
     textDiv.className = "annotation-text";
     (textDiv as any).innerHTML = sanitizeHtml(a.text || "");
-    highlightInElement(textDiv, textQueryRaw);
+    highlightInElement(textDiv, textQueryRaw, textRegexEnabled);
     // 原文采用 quote 风格：按颜色加左侧竖线
     (textDiv as any).style.borderLeft = `3px solid ${a.color || "var(--accent-color)"}`;
     (textDiv as any).style.paddingLeft = '8px';
@@ -487,7 +524,7 @@ function renderAnnotations() {
       const commentDiv = document.createElement("div");
       commentDiv.className = "annotation-comment";
       (commentDiv as any).innerHTML = sanitizeHtml(a.comment);
-      highlightInElement(commentDiv, commentQueryRaw);
+      highlightInElement(commentDiv, commentQueryRaw, commentRegexEnabled);
       // 评论仅浅底色，不使用左侧竖线
       (commentDiv as any).style.borderLeft = '0';
       wrapper.appendChild(commentDiv);

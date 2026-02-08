@@ -17,10 +17,10 @@ export function decodeHtmlEntities(str) {
 
 export function sanitizeHtml(html) {
   const allowedTags = new Set([
-    "b","strong","i","em","u","sub","sup","br","span",
-    "p","ul","ol","li","code","pre","a"
+    "b", "strong", "i", "em", "u", "sub", "sup", "br", "span",
+    "p", "ul", "ol", "li", "code", "pre", "a"
   ]);
-  const allowedAttrs = new Set(["href","title"]);
+  const allowedAttrs = new Set(["href", "title"]);
   const container = document.createElement("div");
   container.innerHTML = decodeHtmlEntities(html || "");
   const all = container.querySelectorAll("*");
@@ -74,9 +74,15 @@ export function highlightHTML(text, query) {
   return html;
 }
 
-export function highlightInElement(rootEl, query) {
+export function highlightInElement(rootEl, query, isRegex = false) {
   if (!rootEl || !query) return;
-  const re = new RegExp(escapeRegExp(query), "gi");
+  let re: RegExp;
+  try {
+    re = isRegex ? new RegExp(query, "gi") : new RegExp(escapeRegExp(query), "gi");
+  } catch {
+    // 无效正则回退到转义匹配
+    re = new RegExp(escapeRegExp(query), "gi");
+  }
   const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, null, false);
   const nodes: any[] = [];
   let n;
@@ -91,7 +97,13 @@ export function highlightInElement(rootEl, query) {
     let last = 0;
     let m;
     const frag = document.createDocumentFragment();
+    re.lastIndex = 0;
     while ((m = re.exec(text)) !== null) {
+      // 防止零宽度匹配导致无限循环
+      if (m[0].length === 0) {
+        re.lastIndex++;
+        continue; // 跳过空匹配，不高亮
+      }
       const plain = text.slice(last, m.index);
       if (plain) frag.appendChild(document.createTextNode(plain));
       const mark = document.createElement("mark");

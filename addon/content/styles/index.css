@@ -274,6 +274,50 @@ h2 {
   color: var(--text-tertiary);
 }
 
+/* —— 搜索输入框包装器（支持内嵌按钮） —— */
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.search-input-wrapper input[type="text"] {
+  padding-right: 28px; /* 为按钮留出空间 */
+}
+
+/* 正则表达式切换按钮 */
+.regex-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: monospace;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+  opacity: 0.4;
+}
+
+.regex-toggle:hover {
+  opacity: 0.7;
+  background: var(--bg-elevated);
+}
+
+.regex-toggle.active {
+  color: var(--text-primary);
+  opacity: 1;
+  background: var(--bg-elevated);
+}
+
 /* —— 多选树样式（文件夹） —— */
 .collections-dropdown {
   position: relative;
