@@ -564,17 +564,41 @@ function renderAnnotations() {
     }
 
     if (a.sourceTitle || a.dateAdded) {
+      // 悬浮显示
       const infoDiv = document.createElement("div");
       infoDiv.className = "annotation-hover-info";
-      let infoText = "";
-      if (a.sourceTitle) infoText += `${a.sourceTitle}`;
+
+      if (a.sourceTitle) {
+        const titleSpan = document.createElement("span");
+        titleSpan.className = "hover-info-title";
+        (titleSpan as any).textContent = a.sourceTitle;
+        (titleSpan as any).title = a.sourceTitle; // 完整标题作为tooltip
+        infoDiv.appendChild(titleSpan);
+      }
+
       if (a.dateAdded) {
         const date = new Date(a.dateAdded);
-        const formatted = date.toLocaleString();
-        infoText += (a.sourceTitle ? ` | ${formatted}` : formatted);
+        // 24小时制格式
+        const formatted = date.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+        const timeSpan = document.createElement("span");
+        timeSpan.className = "hover-info-time";
+        (timeSpan as any).textContent = (a.sourceTitle ? ` | ${formatted}` : formatted);
+        infoDiv.appendChild(timeSpan);
       }
-      (infoDiv as any).textContent = infoText;
+
       wrapper.appendChild(infoDiv);
+
+      // 多栏模式下隐藏的备用元素（保留但不使用）
+      const sourceInfoDiv = document.createElement("div");
+      sourceInfoDiv.className = "annotation-source-info";
+      wrapper.appendChild(sourceInfoDiv);
     }
 
     if (idx === 0) {

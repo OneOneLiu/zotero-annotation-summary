@@ -283,7 +283,8 @@ h2 {
 }
 
 .search-input-wrapper input[type="text"] {
-  padding-right: 28px; /* 为按钮留出空间 */
+  padding-right: 28px;
+  /* 为按钮留出空间 */
 }
 
 /* 正则表达式切换按钮 */
@@ -699,8 +700,37 @@ h2 {
   backdrop-filter: blur(2px);
 }
 
-#annotation-container.per-1 .annotation-item:hover .annotation-hover-info {
+/* 所有模式下悬浮显示 */
+.annotation-item:hover .annotation-hover-info {
   display: block;
+}
+
+/* 多栏模式下悬浮显示 */
+#annotation-container.per-2 .annotation-item:hover .annotation-hover-info,
+#annotation-container.per-3 .annotation-item:hover .annotation-hover-info {
+  display: flex;
+  align-items: center;
+  max-width: calc(100% - 20px);
+  /* 栏宽减去右边距 */
+}
+
+#annotation-container.per-2 .hover-info-title,
+#annotation-container.per-3 .hover-info-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+  /* 允许flex子元素收缩到0 */
+}
+
+.hover-info-time {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* 多栏模式下不使用的来源信息（隐藏） */
+.annotation-source-info {
+  display: none;
 }
 
 /* ---------- 没有结果时的提示 ---------- */
