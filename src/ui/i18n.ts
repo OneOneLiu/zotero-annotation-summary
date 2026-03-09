@@ -49,6 +49,8 @@ const I18N = {
     themeGreen: '护眼绿',
     regexToggleTooltip: '点击启用正则表达式模式',
     regexToggleTooltipActive: '正则表达式模式已启用，点击关闭',
+    copyLink: '复制链接',
+    linkCopied: '链接已复制',
   },
   'en-US': {
     annotationSummaryTitle: 'Annotation Summary',
@@ -94,6 +96,8 @@ const I18N = {
     themeGreen: 'Eye-care Green',
     regexToggleTooltip: 'Click to enable regex mode',
     regexToggleTooltipActive: 'Regex mode enabled, click to disable',
+    copyLink: 'Copy Link',
+    linkCopied: 'Link Copied',
   },
 };
 

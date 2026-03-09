@@ -488,6 +488,11 @@ function renderAnnotations() {
         e.preventDefault();
         window.location.assign(a.uri);
       });
+      wrapper.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showCopyLinkMenu(e as MouseEvent, a.uri);
+      });
     }
     const header = document.createElement("div");
     header.className = "annotation-header";
@@ -1177,6 +1182,71 @@ async function changeAnnotationColor(itemID: number, newColor: string) {
     console.error("修改颜色失败：", e);
     alert("修改颜色出错，请检查控制台错误信息。");
   }
+}
+
+// —— 右键复制链接菜单 ——
+let _copyLinkMenu: HTMLElement | null = null;
+
+function closeCopyLinkMenu() {
+  if (_copyLinkMenu && _copyLinkMenu.parentNode) {
+    _copyLinkMenu.parentNode.removeChild(_copyLinkMenu);
+  }
+  _copyLinkMenu = null;
+}
+
+function showCopyLinkMenu(e: MouseEvent, uri: string) {
+  closeCopyLinkMenu();
+  const menu = document.createElement('div');
+  menu.className = 'copy-link-context-menu';
+  const item = document.createElement('div');
+  item.className = 'copy-link-menu-item';
+  item.textContent = getString('copyLink');
+  item.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    closeCopyLinkMenu();
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(uri);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = uri;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+    } catch { }
+    // 显示已复制提示
+    const toast = document.createElement('div');
+    toast.className = 'copy-link-toast';
+    toast.textContent = getString('linkCopied');
+    toast.style.left = e.clientX + 'px';
+    toast.style.top = e.clientY + 'px';
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 1200);
+  });
+  menu.appendChild(item);
+  menu.style.left = e.clientX + 'px';
+  menu.style.top = e.clientY + 'px';
+  document.body.appendChild(menu);
+  _copyLinkMenu = menu;
+
+  // 点击其他地方关闭
+  const onClose = (ev: Event) => {
+    if (_copyLinkMenu && !_copyLinkMenu.contains(ev.target as Node)) {
+      closeCopyLinkMenu();
+    }
+    document.removeEventListener('click', onClose, true);
+    document.removeEventListener('contextmenu', onClose, true);
+  };
+  setTimeout(() => {
+    document.addEventListener('click', onClose, true);
+    document.addEventListener('contextmenu', onClose, true);
+  }, 0);
 }
 
 function openColorMenuForAnnotation(containerEl: HTMLElement, itemID: number) {

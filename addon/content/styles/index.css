@@ -1186,3 +1186,59 @@ mark.highlight {
   border-radius: 2px;
   display: inline-block;
 }
+
+/* ---------- 右键复制链接菜单 ---------- */
+.copy-link-context-menu {
+  position: fixed;
+  z-index: 10000;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  padding: 4px 0;
+  min-width: 120px;
+}
+
+.copy-link-menu-item {
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.copy-link-menu-item:hover {
+  background: var(--bg-elevated);
+  color: var(--primary-color);
+}
+
+/* 已复制提示 */
+.copy-link-toast {
+  position: fixed;
+  z-index: 10001;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  pointer-events: none;
+  animation: copyToastFade 1.2s ease forwards;
+}
+
+@keyframes copyToastFade {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateY(-6px);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
