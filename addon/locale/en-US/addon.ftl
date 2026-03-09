@@ -28,3 +28,5 @@ stats-color = Color Distribution
 stats-tag = Tag Distribution
 no-tag = No Tag
 no-data = No Data
+reader-copy-link = Copy Link
+reader-link-copied = Link Copied

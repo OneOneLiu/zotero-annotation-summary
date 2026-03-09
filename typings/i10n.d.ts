@@ -30,6 +30,8 @@ export type FluentMessageId =
   | 'prefs-table-detail'
   | 'prefs-table-title'
   | 'prefs-title'
+  | 'reader-copy-link'
+  | 'reader-link-copied'
   | 'search-label-comment'
   | 'search-label-text'
   | 'search-placeholder-comment'
