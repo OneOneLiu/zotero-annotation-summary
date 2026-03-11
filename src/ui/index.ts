@@ -37,6 +37,11 @@ const noResultsDiv = document.getElementById("no-results") as any;
 const tagsListContainer = document.getElementById("tags-list") as any;
 const colorsListContainer = document.getElementById("colors-list") as any;
 
+const exportBtn = document.getElementById("export-btn") as HTMLButtonElement | null;
+const exportModal = document.getElementById("export-modal") as HTMLDivElement | null;
+const exportCancelBtn = document.getElementById("export-cancel-btn") as HTMLButtonElement | null;
+const exportConfirmBtn = document.getElementById("export-confirm-btn") as HTMLButtonElement | null;
+
 let selectedTags = new Set<string>();
 let selectedColors = new Set<string>();
 let selectedAnnotationIds = new Set<number>();
@@ -1294,4 +1299,87 @@ function openColorMenuForAnnotation(containerEl: HTMLElement, itemID: number) {
   document.body.appendChild(menu);
 }
 
+// —— Export JSON Feature ——
+if (exportBtn && exportModal && exportCancelBtn && exportConfirmBtn) {
+  exportBtn.addEventListener('click', () => {
+    exportModal.style.display = 'flex';
+  });
+
+  exportCancelBtn.addEventListener('click', () => {
+    exportModal.style.display = 'none';
+  });
+
+  exportModal.addEventListener('click', (e) => {
+    if (e.target === exportModal) {
+      exportModal.style.display = 'none';
+    }
+  });
+
+  exportConfirmBtn.addEventListener('click', () => {
+    // Collect selected fields
+    const checkboxes = exportModal.querySelectorAll('#export-fields input[type="checkbox"]:checked');
+    const selectedFields = Array.from(checkboxes).map((cb: any) => cb.value);
+
+    // Build the exported structure
+    const exportedData = {
+      metadata: {
+        exportTime: new Date().toISOString(),
+        totalExported: combinedResults.length,
+        filters: {
+          textQuery: textInput.value,
+          commentQuery: commentInput.value,
+          tags: Array.from(selectedTags),
+          colors: Array.from(selectedColors),
+          regex: {
+            textRegexEnabled,
+            commentRegexEnabled
+          }
+        }
+      },
+      exported_annotations: combinedResults.map((a: any) => {
+        const item: any = {};
+        if (selectedFields.includes('text')) item.text = a.text || '';
+        if (selectedFields.includes('comment')) item.comment = a.comment || '';
+        if (selectedFields.includes('color')) item.color = a.color || '';
+        if (selectedFields.includes('tags')) item.tags = asTagArray(a.tags) || [];
+        if (selectedFields.includes('sourceTitle')) item.sourceTitle = a.sourceTitle || '';
+        if (selectedFields.includes('authorSummary')) item.authorSummary = a.authorSummary || '';
+        if (selectedFields.includes('year')) item.year = a.year || '';
+        if (selectedFields.includes('publicationTitle')) item.publicationTitle = a.publicationTitle || '';
+        if (selectedFields.includes('extra')) item.extra = a.extra || '';
+        if (selectedFields.includes('dateAdded')) item.dateAdded = a.dateAdded || '';
+        if (selectedFields.includes('uri')) item.uri = a.uri || '';
+        return item;
+      })
+    };
+
+    // Generate JSON
+    const jsonStr = JSON.stringify(exportedData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    // Default filename with current timestamp yyyyMMdd_HHmmss
+    const date = new Date();
+    const timestamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}${String(date.getSeconds()).padStart(2, '0')}`;
+    const filename = `exported_annotations_${timestamp}.json`;
+
+    // Use native Zotero file picker via the parent window to avoid iframe restrictions
+    const parentZotero = (window as any).parent?.Zotero;
+    if (parentZotero && parentZotero.AnnotationSummary && parentZotero.AnnotationSummary.exportDataToFile) {
+      parentZotero.AnnotationSummary.exportDataToFile(jsonStr, filename);
+    } else {
+      // Fallback: try direct blob download
+      const aElement = document.createElement('a');
+      aElement.href = url;
+      aElement.download = filename;
+      document.body.appendChild(aElement);
+      aElement.click();
+      document.body.removeChild(aElement);
+      URL.revokeObjectURL(url);
+    }
+
+    // Close the modal
+    exportModal.style.display = 'none';
+  });
+}
 

@@ -83,14 +83,14 @@ export function openHelloZoteroTab(fileUri: string) {
           doc.querySelector('.selected .tab-icon');
         if (iconEl) {
           // 同时设置 listStyleImage 与 backgroundImage 提高兼容性
-          try { iconEl.style.listStyleImage = `url(${iconUrl})`; } catch {}
-          try { iconEl.style.setProperty('background-image', `url(${iconUrl})`, 'important'); } catch {}
+          try { iconEl.style.listStyleImage = `url(${iconUrl})`; } catch { }
+          try { iconEl.style.setProperty('background-image', `url(${iconUrl})`, 'important'); } catch { }
           // 确保尺寸为 16x16
-          try { iconEl.style.width = '16px'; iconEl.style.height = '16px'; } catch {}
+          try { iconEl.style.width = '16px'; iconEl.style.height = '16px'; } catch { }
         }
-      } catch {}
+      } catch { }
     }, 0);
-  } catch {}
+  } catch { }
 }
 
 // —— 提取所有注释，结果写入临时文件，返回 file:// URI；发生错误时返回 null —— 
@@ -156,7 +156,7 @@ export async function extractAllAnnotations(): Promise<string | null> {
                 const path = segs.slice(0, i + 1).join(" / ");
                 if (!seenPaths.has(path)) { seenPaths.add(path); collectionPaths.push(path); }
               }
-            } catch {}
+            } catch { }
           }
         }
       }
@@ -164,6 +164,42 @@ export async function extractAllAnnotations(): Promise<string | null> {
       const key = fullItem.key ?? "";
       const parentItemKey = fullItem.parentItem;
       const uri = parentItemKey ? `zotero://open/library/items/${parentItemKey}?page=&annotation=${key}` : "";
+
+      let year = "";
+      let authorSummary = "";
+      let publicationTitle = "";
+      let extra = "";
+
+      if (topItem) {
+        // Extract basic metadata fields if topItem exists
+        year = topItem.getField("date", true) || "";
+        // Clean up date to just year if it's longer
+        if (year && year.length > 4) {
+          const match = year.match(/\d{4}/);
+          if (match) year = match[0];
+        }
+
+        try {
+          publicationTitle = topItem.getField("publicationTitle", true) || "";
+        } catch (e) { }
+
+        try {
+          extra = topItem.getField("extra", true) || "";
+        } catch (e) { }
+
+        try {
+          // Get full author list using getCreators() instead of firstCreator (which is abbreviated)
+          const creators = topItem.getCreators() || [];
+          const authorNames = creators
+            .filter((c: any) => c.creatorTypeID === Zotero.CreatorTypes.getID("author") || c.creatorType === "author" || !c.creatorType)
+            .map((c: any) => {
+              const parts = [c.firstName, c.lastName].filter(Boolean);
+              return parts.join(" ");
+            })
+            .filter(Boolean);
+          authorSummary = authorNames.join(", ");
+        } catch (e) { }
+      }
 
       result.push({
         itemID: item.itemID,
@@ -177,6 +213,10 @@ export async function extractAllAnnotations(): Promise<string | null> {
         dateAdded: fullItem.dateAdded ?? "",
         key,
         sourceTitle: title,
+        year,
+        authorSummary,
+        publicationTitle,
+        extra,
         pdfKey,
         uri,
         parentID: item.parentID,
@@ -185,7 +225,7 @@ export async function extractAllAnnotations(): Promise<string | null> {
         collectionNames,
         collectionPaths,
       });
-    } catch {}
+    } catch { }
   }
 
   try {
@@ -201,5 +241,43 @@ export async function extractAllAnnotations(): Promise<string | null> {
     return fileUri;
   } catch {
     return null;
+  }
+}
+
+export async function exportDataToFile(jsonString: string, defaultFilename: string): Promise<boolean> {
+  try {
+    const win = Zotero.getMainWindow();
+    if (!win) return false;
+
+    const fp = (win.Components as any).classes["@mozilla.org/filepicker;1"]
+      .createInstance((win.Components as any).interfaces.nsIFilePicker);
+
+    fp.init(
+      (win as any).browsingContext || win,
+      "Save Exported Annotations",
+      (win.Components as any).interfaces.nsIFilePicker.modeSave
+    );
+    fp.appendFilter("JSON Files", "*.json");
+    fp.defaultString = defaultFilename;
+
+    const rv = await new Promise<number>((resolve) => {
+      fp.open((result: number) => resolve(result));
+    });
+
+    const okCodes = [
+      (win.Components as any).interfaces.nsIFilePicker.returnOK,
+      (win.Components as any).interfaces.nsIFilePicker.returnReplace,
+    ];
+    if (!okCodes.includes(rv)) {
+      return false;
+    }
+
+    const outFile = fp.file;
+    await Zotero.File.putContents(outFile, jsonString);
+    Zotero.debug("[annotation-summary] JSON exported to: " + outFile.path);
+    return true;
+  } catch (err) {
+    Zotero.debug("[annotation-summary] exportDataToFile error: " + err);
+    return false;
   }
 }

@@ -2,7 +2,7 @@ import { config } from "../package.json";
 import { ColumnOptions, DialogHelper } from "zotero-plugin-toolkit";
 import hooks from "./hooks";
 import { createZToolkit } from "./utils/ztoolkit";
-import { onMainWindowLoad, extractAllAnnotations } from "./events";
+import { onMainWindowLoad, extractAllAnnotations, exportDataToFile } from "./events";
 
 class Addon {
   public data: {
@@ -24,6 +24,7 @@ class Addon {
   public hooks: typeof hooks;
   public api: object;
   public extractAllAnnotations: () => Promise<string | null> = extractAllAnnotations;
+  public exportDataToFile: typeof exportDataToFile = exportDataToFile;
 
   constructor() {
     this.data = {
