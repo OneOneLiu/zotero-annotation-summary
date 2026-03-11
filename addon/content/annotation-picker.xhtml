@@ -1,0 +1,179 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+<?xml-stylesheet href="chrome://zotero-platform/content/zotero.css" type="text/css"?>
+<!DOCTYPE window SYSTEM "chrome://zotero/locale/zotero.dtd">
+<window id="annotation-summary-picker-window" title="Insert Annotation"
+    xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" xmlns:html="http://www.w3.org/1999/xhtml"
+    width="800" height="500" onload="onLoad()">
+
+    <script src="chrome://annotation-summary/content/annotation-picker.js" />
+
+    <vbox flex="1"
+        style="overflow: hidden; min-height: 0; display: flex; flex-direction: column; background-color: #f0f7ff;">
+        <html:link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&amp;display=swap"
+            rel="stylesheet" />
+        <html:style>
+            :root {
+            --bg-primary: #f0f7ff;
+            --bg-secondary: #ffffff;
+            --text-primary: #2c3e50;
+            --text-secondary: #333333;
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --border-color: #e6ebf1;
+            --border-radius: 6px;
+            --font-family: 'Open Sans', sans-serif;
+            }
+            body, window {
+            font-family: var(--font-family);
+            background-color: var(--bg-primary);
+            color: var(--text-secondary);
+            margin: 0;
+            padding: 0;
+            }
+            .header-area {
+            flex: 0 0 auto;
+            padding: 16px 20px 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            }
+            .header-title {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--text-primary);
+            }
+            .search-input {
+            padding: 6px 12px;
+            width: 260px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-family: var(--font-family);
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+            }
+            .search-input:focus {
+            border-color: var(--secondary-color);
+            }
+            .table-container {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            background-color: var(--bg-secondary);
+            padding: 0 20px;
+            }
+            .anno-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-family: var(--font-family);
+            font-size: 13px;
+            }
+            .anno-table th {
+            background: var(--bg-secondary);
+            position: sticky;
+            top: 0;
+            padding: 10px 8px;
+            border-bottom: 2px solid var(--border-color);
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            z-index: 10;
+            }
+            .anno-table td {
+            padding: 12px 8px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            line-height: 1.5;
+            vertical-align: top;
+            }
+            .anno-row {
+            cursor: pointer;
+            transition: background-color 0.15s;
+            }
+            .color-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            .anno-row:hover {
+            background-color: #f8fbff;
+            }
+            .anno-row.selected {
+            background-color: #e3f0fa;
+            border-left: 3px solid var(--secondary-color);
+            }
+            .footer-area {
+            flex: 0 0 auto;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            }
+            .btn {
+            padding: 6px 16px;
+            border-radius: var(--border-radius);
+            font-family: var(--font-family);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: all 0.2s;
+            }
+            .btn:hover {
+            background-color: #f5f9fc;
+            }
+            .btn-primary {
+            background-color: var(--secondary-color);
+            color: white;
+            border-color: var(--secondary-color);
+            }
+            .btn-primary:hover:not(:disabled) {
+            background-color: #2980b9;
+            }
+            .btn-primary:disabled {
+            background-color: #a0cdef;
+            border-color: #a0cdef;
+            cursor: not-allowed;
+            }
+        </html:style>
+
+        <html:div class="header-area">
+            <html:span class="header-title">Select an annotation to insert</html:span>
+            <html:input type="text" id="search-input" class="search-input" placeholder="Search annotations..."
+                oninput="onSearch()" />
+        </html:div>
+
+        <html:div class="table-container">
+            <html:table class="anno-table">
+                <html:thead>
+                    <html:tr>
+                        <html:th style="width: 5%;">C</html:th>
+                        <html:th style="width: 35%;">Annotation Text</html:th>
+                        <html:th style="width: 25%;">Comment</html:th>
+                        <html:th style="width: 20%;">Item Title</html:th>
+                        <html:th style="width: 15%;">Date</html:th>
+                    </html:tr>
+                </html:thead>
+                <html:tbody id="annotation-list">
+                    <!-- List items will be injected here via JavaScript -->
+                </html:tbody>
+            </html:table>
+        </html:div>
+
+        <html:div class="footer-area">
+            <html:button class="btn" onclick="window.close()">Cancel</html:button>
+            <html:button id="insert-btn" class="btn btn-primary" disabled="true" onclick="onInsertClick()">Insert
+                Annotation</html:button>
+        </html:div>
+    </vbox>
+</window>

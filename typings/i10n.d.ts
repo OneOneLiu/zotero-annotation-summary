@@ -23,6 +23,7 @@ export type FluentMessageId =
   | 'no-data'
   | 'no-results'
   | 'no-tag'
+  | 'note-editor-insert-annotation'
   | 'pref-enable'
   | 'pref-help'
   | 'pref-input'

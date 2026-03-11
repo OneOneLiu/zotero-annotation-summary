@@ -30,3 +30,4 @@ no-tag = No Tag
 no-data = No Data
 reader-copy-link = Copy Link
 reader-link-copied = Link Copied
+note-editor-insert-annotation = Insert Annotation...

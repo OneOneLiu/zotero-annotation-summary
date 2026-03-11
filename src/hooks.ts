@@ -102,6 +102,9 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
 
   // —— 在 PDF 阅读器标注右键菜单中注入"复制链接"按钮 ——
   setupReaderCopyLink();
+
+  // —— 在笔记编辑器右键菜单中注入"插入标注"按钮 ——
+  setupNoteEditorContextMenu();
 }
 
 // —— Reader 右键菜单"复制链接"注入逻辑 ——
@@ -180,6 +183,128 @@ function cleanupReaderCopyLink() {
   } catch (e) { }
 }
 
+// —— Note Editor 右键菜单"插入标注"注入逻辑 ——
+let _noteEditorListenerRegistered = false;
+let _originalOpenPopup: any = null;
+let _originalPostMessage: any = null;
+
+function setupNoteEditorContextMenu() {
+  if (_noteEditorListenerRegistered) return;
+
+  try {
+    const EditorInstance = (Zotero as any).EditorInstance;
+    if (!EditorInstance || !EditorInstance.prototype) {
+      Zotero.debug("[annotation-summary] Zotero.EditorInstance 未找到，无法注入笔记菜单");
+      return;
+    }
+
+    if (!EditorInstance.prototype._openPopup || !EditorInstance.prototype._postMessage) {
+      Zotero.debug("[annotation-summary] Zotero.EditorInstance 缺少核心方法，无法注入笔记菜单");
+      return;
+    }
+
+    // 1. Hook _openPopup: 在生成 XUL 菜单前注入我们的项目
+    _originalOpenPopup = EditorInstance.prototype._openPopup;
+    EditorInstance.prototype._openPopup = function (x: number, y: number, pos: any, itemGroups: any[]) {
+      try {
+        // Avoid XrayWrapper Exception: Deep clone the itemGroups into the chrome context
+        try {
+          itemGroups = JSON.parse(JSON.stringify(itemGroups));
+        } catch (e) { }
+        // Output the actual structure of itemGroups to debug
+        Zotero.debug("[annotation-summary] _openPopup called with itemGroups:");
+        // Avoid cyclic dependent JSON error, just basic logging
+        try {
+          Zotero.debug(JSON.stringify(itemGroups, null, 2));
+        } catch (je) {
+          Zotero.debug("[annotation-summary] itemGroups stringify failed: " + Array.from(itemGroups).map(g => typeof g).join(", "));
+        }
+        const injectAnnotation = (groups: any[]) => {
+          if (!Array.isArray(groups)) return false;
+          for (let i = 0; i < groups.length; i++) {
+            const group = groups[i];
+            if (Array.isArray(group)) {
+              const citationIndex = group.findIndex((item: any) => item && item.name === 'insertCitation');
+              if (citationIndex !== -1) {
+                const hasInsertAnnotation = group.some((item: any) => item && item.name === 'insertAnnotationSummary');
+                if (!hasInsertAnnotation) {
+                  group.splice(citationIndex + 1, 0, {
+                    name: 'insertAnnotationSummary',
+                    label: getString('note-editor-insert-annotation'),
+                    enabled: true
+                  });
+                }
+                return true;
+              }
+              if (injectAnnotation(group)) return true;
+            } else if (group && group.groups) {
+              if (injectAnnotation(group.groups)) return true;
+            }
+          }
+          return false;
+        };
+
+        if (itemGroups && Array.isArray(itemGroups)) {
+          injectAnnotation(itemGroups);
+        }
+      } catch (e) {
+        Zotero.debug("[annotation-summary] Hook _openPopup 异常: " + e);
+      }
+      return _originalOpenPopup.call(this, x, y, pos, itemGroups);
+    };
+
+    // 2. Hook _postMessage: 拦截点击事件，打开弹窗并插入链接
+    _originalPostMessage = EditorInstance.prototype._postMessage;
+    EditorInstance.prototype._postMessage = function (message: any) {
+      if (message && message.action === 'contextMenuAction' && message.ctxAction === 'insertAnnotationSummary') {
+        try {
+          // 这里是点击 Insert Annotation 后的处理逻辑
+          Zotero.debug("[annotation-summary] 点击 Insert Annotation 菜单，打开选择弹窗");
+
+          // 打开选择弹窗，并将当前 instance 传递过去，以便插入 HTML
+          const win = Zotero.getMainWindow();
+          if (win) {
+            win.openDialog(
+              `chrome://${config.addonRef}/content/annotation-picker.xhtml`,
+              "annotation-summary-annotation-picker",
+              "chrome,titlebar,toolbar,centerscreen,modal,resizable",
+              this, // argument 1: editorInstance (because this is the editor instance)
+              message.pos, // argument 2
+              Zotero // argument 3: pass the main Zotero object!
+            );
+          }
+        } catch (e) {
+          Zotero.debug("[annotation-summary] 处理 insertAnnotationSummary 异常: " + e);
+        }
+        return; // 拦截消息，不发给 iframe，直接吃掉自己处理
+      }
+      return _originalPostMessage.call(this, message);
+    };
+
+    _noteEditorListenerRegistered = true;
+    Zotero.debug("[annotation-summary] 已注册 Note Editor 右键菜单 hook");
+  } catch (e) {
+    Zotero.debug("[annotation-summary] 注册 Note Editor hook 失败: " + e);
+  }
+}
+
+function cleanupNoteEditorContextMenu() {
+  if (!_noteEditorListenerRegistered) return;
+  try {
+    const EditorInstance = (Zotero as any).EditorInstance;
+    if (EditorInstance && EditorInstance.prototype) {
+      if (_originalOpenPopup) {
+        EditorInstance.prototype._openPopup = _originalOpenPopup;
+      }
+      if (_originalPostMessage) {
+        EditorInstance.prototype._postMessage = _originalPostMessage;
+      }
+    }
+    _noteEditorListenerRegistered = false;
+  } catch (e) { }
+}
+
+
 async function onMainWindowUnload(win: Window): Promise<void> {
   ztoolkit.unregisterAll();
   addon.data.dialog?.window?.close();
@@ -187,6 +312,7 @@ async function onMainWindowUnload(win: Window): Promise<void> {
 
 function onShutdown(): void {
   cleanupReaderCopyLink();
+  cleanupNoteEditorContextMenu();
   ztoolkit.unregisterAll();
   addon.data.dialog?.window?.close();
   // Remove addon object

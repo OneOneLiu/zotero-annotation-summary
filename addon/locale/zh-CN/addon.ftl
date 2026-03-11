@@ -30,3 +30,4 @@ no-tag = 无标签
 no-data = 暂无数据
 reader-copy-link = 复制链接
 reader-link-copied = 链接已复制
+note-editor-insert-annotation = 插入标注...
