@@ -1,8 +1,11 @@
 let editorInstance = null;
 let pos = null;
-let currentAnnotations = [];
+let allAnnotations = [];    // Full list loaded from Zotero (all, in memory)
+let currentAnnotations = []; // Subset currently rendered in the table
 let selectedIndex = -1;
 var Zotero = undefined;
+
+const DISPLAY_LIMIT = 100;
 
 async function onLoad() {
     const args = window.arguments;
@@ -77,24 +80,19 @@ async function loadAnnotations() {
             return bD - aD;
         });
 
-        // Limit to 100 for performance
-        annotations = annotations.slice(0, 100);
-
-        currentAnnotations = [];
+        allAnnotations = [];
 
         for (const itemAny of annotations) {
             const item = itemAny;
             try {
                 let parentItemID = item.parentID;
-                if (!parentItemID) parentItemID = item.parentItemID; // Try alternative property
+                if (!parentItemID) parentItemID = item.parentItemID;
 
                 const fullItem = typeof item.toJSON === 'function' ? item.toJSON() : item;
                 const attachment = await Zotero.Items.getAsync(parentItemID);
                 let title = "未知";
                 let pdfKey = "";
-                let topItem = null;
 
-                // Make sure attachment exists and gets loaded
                 const attachmentItem = Array.isArray(attachment) ? attachment[0] : attachment;
 
                 if (attachmentItem && typeof attachmentItem.isAttachment === 'function' && attachmentItem.isAttachment()) {
@@ -119,7 +117,7 @@ async function loadAnnotations() {
                     dateStr = new Date(fullItem.dateAdded).toLocaleString();
                 }
 
-                currentAnnotations.push({
+                allAnnotations.push({
                     annotationKey: fullItem.key || item.key,
                     attachmentKey: pdfKey,
                     title: title,
@@ -128,42 +126,14 @@ async function loadAnnotations() {
                     color: color,
                     dateAdded: dateStr
                 });
-
-                const tr = document.createElementNS("http://www.w3.org/1999/xhtml", 'tr');
-                tr.setAttribute('data-index', currentAnnotations.length - 1);
-                tr.className = 'anno-row';
-
-                tr.onclick = function () { onRowSelect(this); };
-                tr.ondblclick = function () { onRowSelect(this); onInsertClick(); };
-
-                const tdColor = document.createElementNS("http://www.w3.org/1999/xhtml", 'td');
-                const colorSpan = document.createElementNS("http://www.w3.org/1999/xhtml", 'span');
-                colorSpan.className = 'color-dot';
-                colorSpan.style.backgroundColor = color;
-                tdColor.appendChild(colorSpan);
-                tr.appendChild(tdColor);
-
-                const tdText = document.createElementNS("http://www.w3.org/1999/xhtml", 'td');
-                tdText.textContent = text.substring(0, 100) + (text.length > 100 ? '...' : '');
-                tr.appendChild(tdText);
-
-                const tdComment = document.createElementNS("http://www.w3.org/1999/xhtml", 'td');
-                tdComment.textContent = comment.substring(0, 100) + (comment.length > 100 ? '...' : '');
-                tr.appendChild(tdComment);
-
-                const tdTitle = document.createElementNS("http://www.w3.org/1999/xhtml", 'td');
-                tdTitle.textContent = title.substring(0, 50) + (title.length > 50 ? '...' : '');
-                tr.appendChild(tdTitle);
-
-                const tdDate = document.createElementNS("http://www.w3.org/1999/xhtml", 'td');
-                tdDate.textContent = dateStr;
-                tr.appendChild(tdDate);
-
-                listbox.appendChild(tr);
             } catch (err) {
                 Zotero.debug("[annotation-summary] loadAnnotations iter error: " + err);
             }
         }
+
+        // Render the first DISPLAY_LIMIT annotations by default
+        renderAnnotations(allAnnotations.slice(0, DISPLAY_LIMIT));
+
     } catch (e) {
         Zotero.debug("[annotation-summary] loadAnnotations error: " + e);
         const tr = document.createElementNS("http://www.w3.org/1999/xhtml", 'tr');
@@ -173,6 +143,51 @@ async function loadAnnotations() {
         td.style.padding = '6px';
         td.style.color = 'red';
         tr.appendChild(td);
+        listbox.appendChild(tr);
+    }
+}
+
+function renderAnnotations(annoSubset) {
+    const listbox = document.getElementById('annotation-list');
+    // Clear existing rows
+    while (listbox.firstChild) listbox.removeChild(listbox.firstChild);
+
+    selectedIndex = -1;
+    document.getElementById('insert-btn').disabled = true;
+    currentAnnotations = annoSubset;
+
+    for (let i = 0; i < annoSubset.length; i++) {
+        const anno = annoSubset[i];
+
+        const tr = document.createElementNS("http://www.w3.org/1999/xhtml", 'tr');
+        tr.setAttribute('data-index', i);
+        tr.className = 'anno-row';
+        tr.onclick = function () { onRowSelect(this); };
+        tr.ondblclick = function () { onRowSelect(this); onInsertClick(); };
+
+        const tdColor = document.createElementNS("http://www.w3.org/1999/xhtml", 'td');
+        const colorSpan = document.createElementNS("http://www.w3.org/1999/xhtml", 'span');
+        colorSpan.className = 'color-dot';
+        colorSpan.style.backgroundColor = anno.color;
+        tdColor.appendChild(colorSpan);
+        tr.appendChild(tdColor);
+
+        const tdText = document.createElementNS("http://www.w3.org/1999/xhtml", 'td');
+        tdText.textContent = anno.text.substring(0, 100) + (anno.text.length > 100 ? '...' : '');
+        tr.appendChild(tdText);
+
+        const tdComment = document.createElementNS("http://www.w3.org/1999/xhtml", 'td');
+        tdComment.textContent = anno.comment.substring(0, 100) + (anno.comment.length > 100 ? '...' : '');
+        tr.appendChild(tdComment);
+
+        const tdTitle = document.createElementNS("http://www.w3.org/1999/xhtml", 'td');
+        tdTitle.textContent = anno.title.substring(0, 50) + (anno.title.length > 50 ? '...' : '');
+        tr.appendChild(tdTitle);
+
+        const tdDate = document.createElementNS("http://www.w3.org/1999/xhtml", 'td');
+        tdDate.textContent = anno.dateAdded;
+        tr.appendChild(tdDate);
+
         listbox.appendChild(tr);
     }
 }
@@ -196,34 +211,21 @@ function onRowSelect(rowEl) {
 
 function onSearch() {
     const input = document.getElementById('search-input');
-    const filter = input.value.toLowerCase();
-    const listbox = document.getElementById('annotation-list');
+    const filter = input.value.trim().toLowerCase();
 
-    // Clear selection when searching
-    selectedIndex = -1;
-    document.getElementById('insert-btn').disabled = true;
-
-    for (let i = 0; i < listbox.children.length; i++) {
-        const row = listbox.children[i];
-        row.classList.remove('selected');
-
-        // Skip the "No annotations found" or "Error" row if they don't have data-index
-        if (!row.hasAttribute('data-index')) {
-            continue;
-        }
-
-        const index = parseInt(row.getAttribute('data-index'), 10);
-        const anno = currentAnnotations[index];
-
-        if (anno && (
-            anno.text.toLowerCase().includes(filter) ||
-            anno.comment.toLowerCase().includes(filter)
-        )) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+    if (!filter) {
+        // No search query: show latest DISPLAY_LIMIT annotations
+        renderAnnotations(allAnnotations.slice(0, DISPLAY_LIMIT));
+        return;
     }
+
+    // Search query present: filter from ALL annotations and take first DISPLAY_LIMIT matches
+    const matched = allAnnotations.filter(anno =>
+        anno.text.toLowerCase().includes(filter) ||
+        anno.comment.toLowerCase().includes(filter)
+    ).slice(0, DISPLAY_LIMIT);
+
+    renderAnnotations(matched);
 }
 
 function onInsertClick() {
