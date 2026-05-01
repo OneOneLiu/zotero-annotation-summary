@@ -319,17 +319,16 @@ h2 {
   background: var(--bg-elevated);
 }
 
-/* —— 多选树样式（文件夹） —— */
+/* —— 文件夹筛选树（内联展示） —— */
 .collections-dropdown {
-  position: relative;
   width: 100%;
 }
 
 .collections-trigger {
-  padding: 8px 10px;
+  padding: 6px 8px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 0.9rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
   background-color: var(--bg-tertiary);
   color: var(--text-secondary);
   cursor: pointer;
@@ -337,40 +336,112 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   width: 100%;
 }
 
+.collections-trigger:hover {
+  border-color: var(--border-hover);
+}
+
+.collections-trigger::after {
+  content: '▸';
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.collections-trigger.open::after {
+  transform: rotate(90deg);
+}
+
 .collections-panel {
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  background-color: var(--bg-secondary);
+  display: none;
+  margin-top: 6px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  margin-top: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  max-height: 300px;
+  background-color: var(--bg-secondary);
   overflow: hidden;
-  display: none;
-  overflow-y: auto;
-  padding: 10px;
+  /* 动画 */
+  animation: collPanelSlideDown 0.15s ease;
+}
+
+@keyframes collPanelSlideDown {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 500px; }
+}
+
+/* 搜索框 */
+.collections-search {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-color);
+  gap: 6px;
+}
+
+.collections-search input {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.78rem;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  outline: none;
+}
+
+.collections-search input:focus {
+  border-color: var(--border-hover);
+}
+
+.collections-search input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* 全部清除按钮 */
+.collections-clear-btn {
+  padding: 2px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+.collections-clear-btn:hover {
+  color: var(--primary-color);
+  border-color: var(--border-hover);
 }
 
 .collections-tree {
-  max-height: 60vh;
-  overflow: auto;
+  max-height: 40vh;
+  overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
-  padding: 8px 10px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  background: var(--bg-tertiary);
+  padding: 6px 8px;
+}
+
+/* 自定义滚动条 */
+.collections-tree::-webkit-scrollbar {
+  width: 5px;
+}
+.collections-tree::-webkit-scrollbar-track {
+  background: transparent;
+}
+.collections-tree::-webkit-scrollbar-thumb {
+  background: var(--bg-elevated);
+  border-radius: 3px;
+}
+.collections-tree::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
 }
 
 .collections-tree ul {

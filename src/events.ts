@@ -93,28 +93,25 @@ export function openHelloZoteroTab(fileUri: string) {
   } catch { }
 }
 
-// —— Collection 路径缓存构建（同步）——
-// 在 Zotero.Items.getAll() 执行后，所有 Collection 对象已由 Zotero 加载到内存缓存中，
-// 使用 getByLibrary + 同步 get 即可构建完整路径，无需任何异步等待。
-function buildCollectionPathCache(libraryID: number): Map<number, string[]> {
+// —— Collection 路径按需解析（同步）——
+// 直接使用 Zotero.Collections.get(id) 进行按需加载，避免 getByLibrary() 在部分 Zotero 7 版本下返回不全的问题
+function createCollectionPathResolver() {
   const cache = new Map<number, string[]>();
-  const allCols: any[] = ((Zotero.Collections as any).getByLibrary(libraryID) || []) as any[];
-  const colById = new Map<number, any>();
-  allCols.forEach((col: any) => colById.set(col.id, col));
 
-  // 递归构建路径片段（带缓存，防止重复计算）
   function getSegs(colID: number): string[] {
     if (cache.has(colID)) return cache.get(colID)!;
-    const col = colById.get(colID);
-    if (!col) { cache.set(colID, []); return []; }
+    const col: any = Zotero.Collections.get(colID);
+    if (!col) {
+      cache.set(colID, []);
+      return [];
+    }
     const parentSegs = col.parentID ? getSegs(col.parentID as number) : [];
     const segs = [...parentSegs, col.name as string];
     cache.set(colID, segs);
     return segs;
   }
 
-  allCols.forEach((col: any) => getSegs(col.id as number));
-  return cache;
+  return { getSegs };
 }
 
 // —— 提取所有注释，结果写入临时文件，返回 file:// URI；发生错误时返回 null ——
@@ -134,8 +131,8 @@ export async function extractAllAnnotations(): Promise<string | null> {
   const annotations = items.filter((i) => i.isAnnotation && i.isAnnotation());
   if (annotations.length === 0) return null;
 
-  // 预构建 Collection 路径缓存（同步，O(collection数)，与 annotation 数量无关）
-  const colPathCache = buildCollectionPathCache(libraryID);
+  // 初始化 Collection 路径解析器（按需同步解析，O(1)）
+  const colPathResolver = createCollectionPathResolver();
 
   // —— 预渲染：为缺失缓存图片的 image 标注生成 PNG ——
   // Zotero 的图片缓存是懒生成的（仅在 PDF Reader 打开时才会创建），
@@ -243,7 +240,7 @@ export async function extractAllAnnotations(): Promise<string | null> {
           const seenNames = new Set<string>();
           const seenPaths = new Set<string>();
           for (const cid of ids) {
-            const segs = colPathCache.get(cid as number) ?? [];
+            const segs = colPathResolver.getSegs(cid as number);
             segs.forEach((n) => { if (!seenNames.has(n)) { seenNames.add(n); collectionNames.push(n); } });
             for (let i = 0; i < segs.length; i++) {
               const path = segs.slice(0, i + 1).join(" / ");

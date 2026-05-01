@@ -771,6 +771,43 @@ function renderCollectionsTree() {
       cursor = cursor.children.get(seg);
     });
   });
+
+  // —— 构建搜索栏 + 清除按钮 ——
+  if (collectionsPanel) {
+    // 移除旧的搜索栏（如果有）
+    const oldSearch = collectionsPanel.querySelector('.collections-search');
+    if (oldSearch) oldSearch.remove();
+
+    const searchBar = document.createElement('div');
+    searchBar.className = 'collections-search';
+
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = LOCALE === 'zh-CN' ? '搜索文件夹...' : 'Search folders...';
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.trim().toLowerCase();
+      filterTreeNodes(collectionsTreeEl, q);
+    });
+    searchBar.appendChild(searchInput);
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'collections-clear-btn';
+    clearBtn.textContent = LOCALE === 'zh-CN' ? '清除' : 'Clear';
+    clearBtn.addEventListener('click', () => {
+      selectedCollectionPaths.clear();
+      // 取消所有 checkbox
+      collectionsTreeEl.querySelectorAll('input[type="checkbox"]').forEach((c: any) => {
+        c.checked = false;
+        c.indeterminate = false;
+      });
+      updateCollectionsTriggerLabel();
+      filterAnnotations();
+    });
+    searchBar.appendChild(clearBtn);
+
+    collectionsPanel.insertBefore(searchBar, collectionsTreeEl);
+  }
+
   collectionsTreeEl.innerHTML = '';
   const ul = document.createElement('ul');
   collectionsTreeEl.appendChild(ul);
@@ -862,10 +899,46 @@ function renderCollectionsTree() {
   }
 }
 
+// —— 搜索过滤树节点 ——
+function filterTreeNodes(treeEl: any, query: string) {
+  if (!treeEl) return;
+  const allLIs = treeEl.querySelectorAll('li');
+  if (!query) {
+    // 无搜索词：全部显示
+    allLIs.forEach((li: any) => { li.style.display = ''; });
+    return;
+  }
+  // 先全部隐藏
+  allLIs.forEach((li: any) => { li.style.display = 'none'; });
+  // 匹配的节点 + 所有祖先可见
+  allLIs.forEach((li: any) => {
+    const label = li.querySelector(':scope > .node-label') as any;
+    if (label && label.textContent.toLowerCase().includes(query)) {
+      // 显示自己 + 所有后代
+      li.style.display = '';
+      li.querySelectorAll('li').forEach((child: any) => { child.style.display = ''; });
+      // 展开祖先
+      let p = li.parentElement;
+      while (p && p !== treeEl) {
+        if (p.tagName.toLowerCase() === 'li') {
+          p.style.display = '';
+          p.classList.remove('collapsed');
+        }
+        p = p.parentElement;
+      }
+    }
+  });
+}
+
 function toggleCollectionsPanel(show?: boolean) {
   if (!collectionsPanel) return;
   const target = (typeof show === 'boolean') ? show : (collectionsPanel.style.display !== 'block');
   collectionsPanel.style.display = target ? 'block' : 'none';
+  // 切换 trigger 按钮的箭头方向
+  if (collectionsTrigger) {
+    if (target) collectionsTrigger.classList.add('open');
+    else collectionsTrigger.classList.remove('open');
+  }
 }
 function updateCollectionsTriggerLabel() {
   if (!collectionsTrigger) return;
@@ -881,12 +954,7 @@ collectionsTrigger && collectionsTrigger.addEventListener('click', (e) => {
   e.stopPropagation();
   toggleCollectionsPanel();
 });
-document.addEventListener('click', (e) => {
-  if (!collectionsPanel) return;
-  if (collectionsPanel.style.display !== 'block') return;
-  const within = collectionsPanel.contains(e.target as any) || collectionsTrigger.contains(e.target as any);
-  if (!within) toggleCollectionsPanel(false);
-});
+
 
 function renderHistogram(container: any, data: any, isColor = false) {
   container.innerHTML = "";
