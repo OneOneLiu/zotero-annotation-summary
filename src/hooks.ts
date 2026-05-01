@@ -1,10 +1,3 @@
-import {
-  BasicExampleFactory,
-  HelperExampleFactory,
-  KeyExampleFactory,
-  PromptExampleFactory,
-  UIExampleFactory,
-} from "./modules/examples";
 import { getString, initLocale } from "./utils/locale";
 import { registerPrefsScripts } from "./modules/preferenceScript";
 import { createZToolkit } from "./utils/ztoolkit";
@@ -187,6 +180,8 @@ function cleanupReaderCopyLink() {
 let _noteEditorListenerRegistered = false;
 let _originalOpenPopup: any = null;
 let _originalPostMessage: any = null;
+// Prototype 标记键，防止热重载时对同一 prototype 重复 patch 造成递归调用
+const _PATCH_MARKER = "__annotationSummaryPatched";
 
 function setupNoteEditorContextMenu() {
   if (_noteEditorListenerRegistered) return;
@@ -200,6 +195,13 @@ function setupNoteEditorContextMenu() {
 
     if (!EditorInstance.prototype._openPopup || !EditorInstance.prototype._postMessage) {
       Zotero.debug("[annotation-summary] Zotero.EditorInstance 缺少核心方法，无法注入笔记菜单");
+      return;
+    }
+
+    // 防止重复 patch（热重载保护：若已打过标记则直接跳过）
+    if (EditorInstance.prototype[_PATCH_MARKER]) {
+      Zotero.debug("[annotation-summary] Note Editor hook 已存在，跳过重复注入");
+      _noteEditorListenerRegistered = true;
       return;
     }
 
@@ -281,6 +283,8 @@ function setupNoteEditorContextMenu() {
       return _originalPostMessage.call(this, message);
     };
 
+    // 标记 prototype 已被 patch
+    EditorInstance.prototype[_PATCH_MARKER] = true;
     _noteEditorListenerRegistered = true;
     Zotero.debug("[annotation-summary] 已注册 Note Editor 右键菜单 hook");
   } catch (e) {
@@ -299,6 +303,8 @@ function cleanupNoteEditorContextMenu() {
       if (_originalPostMessage) {
         EditorInstance.prototype._postMessage = _originalPostMessage;
       }
+      // 清除 patch 标记，允许重新注入
+      delete EditorInstance.prototype[_PATCH_MARKER];
     }
     _noteEditorListenerRegistered = false;
   } catch (e) { }
@@ -321,27 +327,14 @@ function onShutdown(): void {
   delete Zotero[addon.data.config.addonInstance];
 }
 
-/**
- * This function is just an example of dispatcher for Notify events.
- * Any operations should be placed in a function to keep this funcion clear.
- */
 async function onNotify(
   event: string,
   type: string,
   ids: Array<string | number>,
   extraData: { [key: string]: any },
 ) {
-  // You can add your code to the corresponding notify type
+  // 当前插件无需处理 Notify 事件，保留空实现供后续扩展
   ztoolkit.log("notify", event, type, ids, extraData);
-  if (
-    event == "select" &&
-    type == "tab" &&
-    extraData[ids[0]].type == "reader"
-  ) {
-    BasicExampleFactory.exampleNotifierCallback();
-  } else {
-    return;
-  }
 }
 
 /**
@@ -361,38 +354,13 @@ async function onPrefsEvent(type: string, data: { [key: string]: any }) {
 }
 
 function onShortcuts(type: string) {
-  switch (type) {
-    case "larger":
-      KeyExampleFactory.exampleShortcutLargerCallback();
-      break;
-    case "smaller":
-      KeyExampleFactory.exampleShortcutSmallerCallback();
-      break;
-    default:
-      break;
-  }
+  // 保留函数签名（hooks 接口要求），当前无快捷键功能
+  ztoolkit.log("shortcut", type);
 }
 
 function onDialogEvents(type: string) {
-  switch (type) {
-    case "dialogExample":
-      HelperExampleFactory.dialogExample();
-      break;
-    case "clipboardExample":
-      HelperExampleFactory.clipboardExample();
-      break;
-    case "filePickerExample":
-      HelperExampleFactory.filePickerExample();
-      break;
-    case "progressWindowExample":
-      HelperExampleFactory.progressWindowExample();
-      break;
-    case "vtableExample":
-      HelperExampleFactory.vtableExample();
-      break;
-    default:
-      break;
-  }
+  // 保留函数签名（hooks 接口要求），当前无对话框事件
+  ztoolkit.log("dialogEvent", type);
 }
 
 export default {

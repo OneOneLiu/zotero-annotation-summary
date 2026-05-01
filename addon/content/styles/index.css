@@ -1280,3 +1280,99 @@ mark.highlight {
 .modal-content button:hover {
   opacity: 0.9;
 }
+
+/* ---------- 图片标注（Image Annotation） ---------- */
+.annotation-image {
+  width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 4px;
+  cursor: zoom-in;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: block;
+  margin: 0 auto;
+  background: var(--bg-elevated);
+}
+
+.annotation-image:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 图片标注占位（缓存不存在时） */
+.annotation-image-placeholder {
+  width: 100%;
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-tertiary);
+  background: var(--bg-elevated);
+  border-radius: 4px;
+  border: 1px dashed var(--border-color);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* 多列布局下图片自适应 —— 利用已有的 grid 1fr 机制，
+   图片 width:100% 自动跟随网格列宽缩放，无需额外处理 */
+#annotation-container.per-2 .annotation-image,
+#annotation-container.per-3 .annotation-image {
+  max-height: 240px;
+}
+
+/* ---------- 图片放大灯箱（Lightbox） ---------- */
+.image-lightbox-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.82);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20000;
+  cursor: zoom-out;
+  animation: lightboxFadeIn 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.image-lightbox-overlay img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
+
+/* 灯箱关闭按钮 */
+.image-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 24px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.image-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+@keyframes lightboxFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

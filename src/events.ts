@@ -93,16 +93,82 @@ export function openHelloZoteroTab(fileUri: string) {
   } catch { }
 }
 
-// —— 提取所有注释，结果写入临时文件，返回 file:// URI；发生错误时返回 null —— 
+// —— Collection 路径缓存构建（同步）——
+// 在 Zotero.Items.getAll() 执行后，所有 Collection 对象已由 Zotero 加载到内存缓存中，
+// 使用 getByLibrary + 同步 get 即可构建完整路径，无需任何异步等待。
+function buildCollectionPathCache(libraryID: number): Map<number, string[]> {
+  const cache = new Map<number, string[]>();
+  const allCols: any[] = ((Zotero.Collections as any).getByLibrary(libraryID) || []) as any[];
+  const colById = new Map<number, any>();
+  allCols.forEach((col: any) => colById.set(col.id, col));
+
+  // 递归构建路径片段（带缓存，防止重复计算）
+  function getSegs(colID: number): string[] {
+    if (cache.has(colID)) return cache.get(colID)!;
+    const col = colById.get(colID);
+    if (!col) { cache.set(colID, []); return []; }
+    const parentSegs = col.parentID ? getSegs(col.parentID as number) : [];
+    const segs = [...parentSegs, col.name as string];
+    cache.set(colID, segs);
+    return segs;
+  }
+
+  allCols.forEach((col: any) => getSegs(col.id as number));
+  return cache;
+}
+
+// —— 提取所有注释，结果写入临时文件，返回 file:// URI；发生错误时返回 null ——
+// 性能优化：
+//   1. Zotero.Items.getAll() 会将文库内所有 Item 加载到 Zotero 内存缓存。
+//      此后 Zotero.Items.get(id) 为纯同步操作，无需 await，消除了原有的 3000+ 串行微任务等待。
+//   2. 通过 buildCollectionPathCache() 一次性预构建 Collection 完整路径映射，
+//      彻底消除原有的嵌套循环 await Zotero.Collections.get()。
 export async function extractAllAnnotations(): Promise<string | null> {
   const ZoteroPane = Zotero.getActiveZoteroPane();
   if (!ZoteroPane) return null;
   const libraryID = ZoteroPane.getSelectedLibraryID();
   if (!libraryID) return null;
 
+  // 唯一一次真正的异步调用：将文库所有 Item 加载到缓存
   const items = await Zotero.Items.getAll(libraryID);
   const annotations = items.filter((i) => i.isAnnotation && i.isAnnotation());
   if (annotations.length === 0) return null;
+
+  // 预构建 Collection 路径缓存（同步，O(collection数)，与 annotation 数量无关）
+  const colPathCache = buildCollectionPathCache(libraryID);
+
+  // —— 预渲染：为缺失缓存图片的 image 标注生成 PNG ——
+  // Zotero 的图片缓存是懒生成的（仅在 PDF Reader 打开时才会创建），
+  // 因此从未在本机打开过的 PDF（如同步过来的）不会有缓存。
+  // 使用 PDFWorker.renderAttachmentAnnotations() 主动触发渲染。
+  try {
+    const imageAnnotations = (annotations as any[]).filter(
+      (a: any) => a.annotationType === "image" || (a.toJSON && a.toJSON().annotationType === "image")
+    );
+    if (imageAnnotations.length > 0) {
+      // 收集需要渲染的附件 ID（去重）
+      const attachmentIds = new Set<number>();
+      for (const ann of imageAnnotations) {
+        if (ann.parentID) attachmentIds.add(ann.parentID as number);
+      }
+      // 并发触发渲染（PDFWorker 内部有队列，不会真正并行读取 PDF）
+      const renderPromises: Promise<any>[] = [];
+      for (const attId of attachmentIds) {
+        try {
+          renderPromises.push(
+            (Zotero as any).PDFWorker.renderAttachmentAnnotations(attId, true)
+          );
+        } catch { /* 单个附件渲染失败不影响其他 */ }
+      }
+      if (renderPromises.length > 0) {
+        Zotero.debug(`[annotation-summary] Pre-rendering image caches for ${attachmentIds.size} attachment(s)...`);
+        await Promise.allSettled(renderPromises);
+        Zotero.debug(`[annotation-summary] Pre-render complete.`);
+      }
+    }
+  } catch (preRenderErr) {
+    Zotero.debug(`[annotation-summary] Pre-render step failed (non-fatal): ${preRenderErr}`);
+  }
 
   const result: any[] = [];
   for (const itemAny of annotations as any[]) {
@@ -111,24 +177,62 @@ export async function extractAllAnnotations(): Promise<string | null> {
       const fullItem: any = item.toJSON();
       const pos = JSON.parse(fullItem.annotationPosition ?? "{}");
 
-      const attachment: any = await Zotero.Items.get(item.parentID);
+      // 对 image 类型标注，获取缓存的截图 Data URI
+      let imageDataUri = "";
+      if (fullItem.annotationType === "image") {
+        try {
+          const itemRef = { libraryID: item.libraryID, key: fullItem.key };
+          const imgPath = (Zotero as any).Annotations.getCacheImagePath(itemRef);
+          Zotero.debug(`[annotation-summary] image cache path: ${imgPath}`);
+
+          if (imgPath) {
+            // 策略1: 使用 Zotero.Annotations.hasCacheImage（官方 API）
+            // 策略2: 使用 IOUtils.exists（Zotero 7 / Firefox 115+ 推荐）
+            // 策略3: 直接尝试读取（跳过存在性检查）
+            let fileExists = false;
+            try {
+              fileExists = await (Zotero as any).Annotations.hasCacheImage(itemRef);
+            } catch {
+              try {
+                fileExists = await (globalThis as any).IOUtils.exists(imgPath);
+              } catch {
+                // 跳过存在性检查，直接尝试读取
+                fileExists = true;
+              }
+            }
+
+            if (fileExists) {
+              imageDataUri = await Zotero.File.generateDataURI(imgPath, "image/png");
+              Zotero.debug(`[annotation-summary] image loaded: ${fullItem.key} (${imageDataUri.length} chars)`);
+            }
+          }
+        } catch (imgErr) {
+          Zotero.debug(`[annotation-summary] image extraction failed for ${fullItem.key}: ${imgErr}`);
+        }
+      }
+
+      // 同步查缓存（getAll 后所有 attachment 已在 Zotero 内存中）
+      const attachment: any = Zotero.Items.get(item.parentID);
       let title = "未知";
       let pdfKey = "";
       let topItem: any = null;
       if (attachment?.isAttachment()) {
         pdfKey = attachment.key ?? "";
-        const parentItem = (typeof attachment.parentID === "number" || typeof attachment.parentID === "string")
-          ? await Zotero.Items.get(attachment.parentID)
-          : null;
+        const parentID = typeof attachment.parentID === "number" || typeof attachment.parentID === "string"
+          ? attachment.parentID : null;
+        // 同步查缓存
+        const parentItem: any = parentID ? Zotero.Items.get(parentID) : null;
         title = parentItem?.getField("title") ?? title;
         topItem = parentItem;
+        // 向上追溯到顶层 Item（全同步）
         while (topItem && typeof topItem.isTopLevelItem === "function" && !topItem.isTopLevelItem()) {
           const pid = topItem.parentID;
           if (!pid) break;
-          topItem = await Zotero.Items.get(pid);
+          topItem = Zotero.Items.get(pid);
         }
       }
 
+      // Collection 路径：直接从预构建缓存读取，无任何 await
       let collectionIDs: Array<number | string> = [];
       const collectionNames: string[] = [];
       const collectionPaths: string[] = [];
@@ -139,24 +243,12 @@ export async function extractAllAnnotations(): Promise<string | null> {
           const seenNames = new Set<string>();
           const seenPaths = new Set<string>();
           for (const cid of ids) {
-            try {
-              const col = await Zotero.Collections.get(cid as any);
-              if (!col) continue;
-              const segs: string[] = [];
-              let cursor: any = col;
-              let guard = 0;
-              while (cursor && guard < 30) {
-                if (cursor.name) segs.unshift(cursor.name);
-                if (!cursor.parentID) break;
-                cursor = await Zotero.Collections.get(cursor.parentID);
-                guard++;
-              }
-              segs.forEach((n) => { if (!seenNames.has(n)) { seenNames.add(n); collectionNames.push(n); } });
-              for (let i = 0; i < segs.length; i++) {
-                const path = segs.slice(0, i + 1).join(" / ");
-                if (!seenPaths.has(path)) { seenPaths.add(path); collectionPaths.push(path); }
-              }
-            } catch { }
+            const segs = colPathCache.get(cid as number) ?? [];
+            segs.forEach((n) => { if (!seenNames.has(n)) { seenNames.add(n); collectionNames.push(n); } });
+            for (let i = 0; i < segs.length; i++) {
+              const path = segs.slice(0, i + 1).join(" / ");
+              if (!seenPaths.has(path)) { seenPaths.add(path); collectionPaths.push(path); }
+            }
           }
         }
       }
@@ -171,34 +263,21 @@ export async function extractAllAnnotations(): Promise<string | null> {
       let extra = "";
 
       if (topItem) {
-        // Extract basic metadata fields if topItem exists
         year = topItem.getField("date", true) || "";
-        // Clean up date to just year if it's longer
         if (year && year.length > 4) {
           const match = year.match(/\d{4}/);
           if (match) year = match[0];
         }
-
+        try { publicationTitle = topItem.getField("publicationTitle", true) || ""; } catch { }
+        try { extra = topItem.getField("extra", true) || ""; } catch { }
         try {
-          publicationTitle = topItem.getField("publicationTitle", true) || "";
-        } catch (e) { }
-
-        try {
-          extra = topItem.getField("extra", true) || "";
-        } catch (e) { }
-
-        try {
-          // Get full author list using getCreators() instead of firstCreator (which is abbreviated)
           const creators = topItem.getCreators() || [];
           const authorNames = creators
             .filter((c: any) => c.creatorTypeID === Zotero.CreatorTypes.getID("author") || c.creatorType === "author" || !c.creatorType)
-            .map((c: any) => {
-              const parts = [c.firstName, c.lastName].filter(Boolean);
-              return parts.join(" ");
-            })
+            .map((c: any) => [c.firstName, c.lastName].filter(Boolean).join(" "))
             .filter(Boolean);
           authorSummary = authorNames.join(", ");
-        } catch (e) { }
+        } catch { }
       }
 
       result.push({
@@ -224,6 +303,8 @@ export async function extractAllAnnotations(): Promise<string | null> {
         collectionIDs,
         collectionNames,
         collectionPaths,
+        // image 类型标注的 base64 Data URI（非 image 类型为空字符串）
+        image: imageDataUri,
       });
     } catch { }
   }

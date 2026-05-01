@@ -523,8 +523,30 @@ function renderAnnotations() {
 
     const textDiv = document.createElement("div");
     textDiv.className = "annotation-text";
-    (textDiv as any).innerHTML = sanitizeHtml(a.text || "");
-    highlightInElement(textDiv, textQueryRaw, textRegexEnabled);
+
+    if (a.type === "image" && a.image) {
+      // 图片标注：显示缓存的截图
+      const img = document.createElement("img") as HTMLImageElement;
+      img.className = "annotation-image";
+      img.src = a.image;
+      img.alt = "Image annotation";
+      // 点击放大查看
+      img.addEventListener("click", (e) => {
+        e.stopPropagation();
+        showImageLightbox(a.image);
+      });
+      textDiv.appendChild(img);
+    } else if (a.type === "image" && !a.image) {
+      // 图片标注但缓存不存在：显示占位符
+      const placeholder = document.createElement("div");
+      placeholder.className = "annotation-image-placeholder";
+      placeholder.textContent = LOCALE === 'zh-CN' ? '🖼️ 图片标注（缓存不可用）' : '🖼️ Image annotation (cache unavailable)';
+      textDiv.appendChild(placeholder);
+    } else {
+      // 文字标注（highlight / underline 等）：显示文本
+      (textDiv as any).innerHTML = sanitizeHtml(a.text || "");
+      highlightInElement(textDiv, textQueryRaw, textRegexEnabled);
+    }
     // 原文采用 quote 风格：按颜色加左侧竖线
     (textDiv as any).style.borderLeft = `3px solid ${a.color || "var(--accent-color)"}`;
     (textDiv as any).style.paddingLeft = '8px';
@@ -1299,6 +1321,46 @@ function openColorMenuForAnnotation(containerEl: HTMLElement, itemID: number) {
   document.body.appendChild(menu);
 }
 
+// —— 图片放大灯箱（Lightbox） ——
+function showImageLightbox(src: string) {
+  // 创建全屏遮罩
+  const overlay = document.createElement("div");
+  overlay.className = "image-lightbox-overlay";
+
+  // 关闭按钮
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "image-lightbox-close";
+  closeBtn.innerHTML = "&times;";
+  closeBtn.title = LOCALE === 'zh-CN' ? '关闭' : 'Close';
+  closeBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    overlay.remove();
+  });
+  overlay.appendChild(closeBtn);
+
+  // 图片
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = "Annotation image (enlarged)";
+  // 阻止点击图片时关闭遮罩
+  img.addEventListener("click", (e) => e.stopPropagation());
+  overlay.appendChild(img);
+
+  // 点击遮罩关闭
+  overlay.addEventListener("click", () => overlay.remove());
+
+  // ESC 关闭
+  const handleEsc = (e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      overlay.remove();
+      document.removeEventListener("keydown", handleEsc);
+    }
+  };
+  document.addEventListener("keydown", handleEsc);
+
+  document.body.appendChild(overlay);
+}
+
 // —— Export JSON Feature ——
 if (exportBtn && exportModal && exportCancelBtn && exportConfirmBtn) {
   exportBtn.addEventListener('click', () => {
@@ -1349,6 +1411,7 @@ if (exportBtn && exportModal && exportCancelBtn && exportConfirmBtn) {
         if (selectedFields.includes('extra')) item.extra = a.extra || '';
         if (selectedFields.includes('dateAdded')) item.dateAdded = a.dateAdded || '';
         if (selectedFields.includes('uri')) item.uri = a.uri || '';
+        if (selectedFields.includes('image')) item.image = a.image || '';
         return item;
       })
     };

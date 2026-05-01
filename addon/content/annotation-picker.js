@@ -39,100 +39,85 @@ async function loadAnnotations() {
     const listbox = document.getElementById("annotation-list");
 
     try {
-        // Find extractAllAnnotations from our plugin
         const AnnotationSummary = Zotero.AnnotationSummary || Zotero.annotationSummary;
         if (!AnnotationSummary) {
             Zotero.debug("[annotation-summary] Cannot find AnnotationSummary plugin instance");
             throw new Error("Plugin instance not found.");
         }
 
-        // Due to module structure, it might be heavily bundled, but let's try calling the same logic 
-        // that the export uses. Alternatively, we can use Zotero's search if wait for loaded.
+        // —— 优先策略：读取 extractAllAnnotations() 已生成的临时 JSON 缓存 ——
+        // 这样可以完全复用主界面的数据，无需重复遍历全库（避免与 events.ts 重复逻辑）。
+        const PREFS_KEY = 'annotation-summary@ool.utoronto.ca.lastTempFile';
+        let cachedLoaded = false;
 
-        let itemsJSON = null;
+        try {
+            const lastFileUri = Zotero.Prefs.get(PREFS_KEY);
+            if (lastFileUri) {
+                const ioService = Components.classes["@mozilla.org/network/io-service;1"]
+                    .getService(Components.interfaces.nsIIOService);
+                const fileURL = ioService.newURI(lastFileUri, null, null)
+                    .QueryInterface(Components.interfaces.nsIFileURL);
+                const nsIFile = fileURL.file;
 
-        // To be safe and identical to the summary logic, we will redo the search logic 
-        // that ensures it gets everything loaded with all attachments.
-        const ZoteroPane = Zotero.getActiveZoteroPane();
-        const libraryID = ZoteroPane.getSelectedLibraryID();
-
-        if (!libraryID) throw new Error("No library selected");
-
-        const items = await Zotero.Items.getAll(libraryID);
-        let annotations = items.filter((i) => i.isAnnotation && i.isAnnotation());
-
-        if (annotations.length === 0) {
-            const tr = document.createElementNS("http://www.w3.org/1999/xhtml", "tr");
-            const td = document.createElementNS("http://www.w3.org/1999/xhtml", "td");
-            td.setAttribute('colspan', '5');
-            td.textContent = 'No annotations found';
-            td.style.padding = "6px";
-            tr.appendChild(td);
-            listbox.appendChild(tr);
-            return;
-        }
-
-        // Sort by dateAdded descending (newest first)
-        annotations.sort((a, b) => {
-            // Avoid undefined date issues
-            let aD = a.dateAdded ? new Date(a.dateAdded).getTime() : 0;
-            let bD = b.dateAdded ? new Date(b.dateAdded).getTime() : 0;
-            return bD - aD;
-        });
-
-        allAnnotations = [];
-
-        for (const itemAny of annotations) {
-            const item = itemAny;
-            try {
-                let parentItemID = item.parentID;
-                if (!parentItemID) parentItemID = item.parentItemID;
-
-                const fullItem = typeof item.toJSON === 'function' ? item.toJSON() : item;
-                const attachment = await Zotero.Items.getAsync(parentItemID);
-                let title = "未知";
-                let pdfKey = "";
-
-                const attachmentItem = Array.isArray(attachment) ? attachment[0] : attachment;
-
-                if (attachmentItem && typeof attachmentItem.isAttachment === 'function' && attachmentItem.isAttachment()) {
-                    pdfKey = attachmentItem.key || "";
-                    let pID = attachmentItem.parentID;
-                    if (!pID) pID = attachmentItem.parentItemID;
-
-                    if (pID) {
-                        const parentItems = await Zotero.Items.getAsync(pID);
-                        const parentItem = Array.isArray(parentItems) ? parentItems[0] : parentItems;
-                        if (parentItem && typeof parentItem.getField === 'function') {
-                            title = parentItem.getField("title") || title;
+                if (nsIFile.exists()) {
+                    const jsonStr = await Zotero.File.getContents(nsIFile);
+                    if (jsonStr) {
+                        const data = JSON.parse(jsonStr);
+                        if (Array.isArray(data) && data.length > 0) {
+                            // 将缓存 JSON 转换为 picker 所需的格式，按时间倒序
+                            allAnnotations = data
+                                .slice() // 不修改原数组
+                                .sort((a, b) => {
+                                    const aD = a.dateAdded ? new Date(a.dateAdded).getTime() : 0;
+                                    const bD = b.dateAdded ? new Date(b.dateAdded).getTime() : 0;
+                                    return bD - aD;
+                                })
+                                .map(a => ({
+                                    annotationKey: a.key,
+                                    attachmentKey: a.pdfKey,
+                                    title: a.sourceTitle || "未知",
+                                    text: a.text || "[Empty]",
+                                    comment: a.comment || "",
+                                    color: a.color || "#ffd400",
+                                    type: a.type || "highlight",
+                                    image: a.image || "",
+                                    dateAdded: a.dateAdded
+                                        ? new Date(a.dateAdded).toLocaleString()
+                                        : "Unknown Date"
+                                }));
+                            renderAnnotations(allAnnotations.slice(0, DISPLAY_LIMIT));
+                            cachedLoaded = true;
+                            Zotero.debug("[annotation-summary] picker: loaded " + allAnnotations.length + " annotations from cache");
                         }
                     }
                 }
+            }
+        } catch (cacheErr) {
+            Zotero.debug("[annotation-summary] picker: cache read failed, will call extractAllAnnotations: " + cacheErr);
+        }
 
-                const color = fullItem.annotationColor || item.annotationColor || '#ffd400';
-                const text = fullItem.annotationText || '[Empty]';
-                const comment = fullItem.annotationComment || '';
-                let dateStr = "Unknown Date";
-                if (fullItem.dateAdded) {
-                    dateStr = new Date(fullItem.dateAdded).toLocaleString();
-                }
+        if (cachedLoaded) return;
 
-                allAnnotations.push({
-                    annotationKey: fullItem.key || item.key,
-                    attachmentKey: pdfKey,
-                    title: title,
-                    text: text,
-                    comment: comment,
-                    color: color,
-                    dateAdded: dateStr
-                });
-            } catch (err) {
-                Zotero.debug("[annotation-summary] loadAnnotations iter error: " + err);
+        // —— 回退策略：调用 extractAllAnnotations() 生成新缓存后再读取 ——
+        // 仅在首次（尚未打开过主界面）或缓存文件被清理时触发。
+        Zotero.debug("[annotation-summary] picker: no valid cache, calling extractAllAnnotations");
+        if (typeof AnnotationSummary.extractAllAnnotations === 'function') {
+            const newUri = await AnnotationSummary.extractAllAnnotations();
+            if (newUri) {
+                // 递归调用自身，此时缓存已存在
+                await loadAnnotations();
+                return;
             }
         }
 
-        // Render the first DISPLAY_LIMIT annotations by default
-        renderAnnotations(allAnnotations.slice(0, DISPLAY_LIMIT));
+        // 无数据可用
+        const tr = document.createElementNS("http://www.w3.org/1999/xhtml", "tr");
+        const td = document.createElementNS("http://www.w3.org/1999/xhtml", "td");
+        td.setAttribute('colspan', '5');
+        td.textContent = 'No annotations found';
+        td.style.padding = "6px";
+        tr.appendChild(td);
+        listbox.appendChild(tr);
 
     } catch (e) {
         Zotero.debug("[annotation-summary] loadAnnotations error: " + e);
@@ -173,7 +158,27 @@ function renderAnnotations(annoSubset) {
         tr.appendChild(tdColor);
 
         const tdText = document.createElementNS("http://www.w3.org/1999/xhtml", 'td');
-        tdText.textContent = anno.text.substring(0, 100) + (anno.text.length > 100 ? '...' : '');
+        if (anno.type === 'image' && anno.image) {
+            // 图片标注：显示缩略图 + 标签
+            const thumb = document.createElementNS("http://www.w3.org/1999/xhtml", 'img');
+            thumb.src = anno.image;
+            thumb.style.height = '40px';
+            thumb.style.maxWidth = '80px';
+            thumb.style.objectFit = 'contain';
+            thumb.style.verticalAlign = 'middle';
+            thumb.style.marginRight = '6px';
+            thumb.style.borderRadius = '3px';
+            tdText.appendChild(thumb);
+            const label = document.createElementNS("http://www.w3.org/1999/xhtml", 'span');
+            label.textContent = '[Image]';
+            label.style.color = '#999';
+            label.style.fontStyle = 'italic';
+            tdText.appendChild(label);
+        } else if (anno.type === 'image') {
+            tdText.textContent = '🖼️ [Image]';
+        } else {
+            tdText.textContent = anno.text.substring(0, 100) + (anno.text.length > 100 ? '...' : '');
+        }
         tr.appendChild(tdText);
 
         const tdComment = document.createElementNS("http://www.w3.org/1999/xhtml", 'td');
